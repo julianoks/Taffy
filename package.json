@@ -10,7 +10,7 @@
 		"rollup": "^0.60.7"
 	},
 	"scripts": {
-		"test": "node_modules/eslint/bin/eslint.js .",
-		"build": "node_modules/rollup/bin/rollup index.js --format umd --name 'taffy' --file taffy.js"
+		"test": "node_modules/eslint/bin/eslint.js src/",
+		"build": "node_modules/rollup/bin/rollup src/index.js --format umd --name 'taffy' --file taffy.js"
 	}
 }
