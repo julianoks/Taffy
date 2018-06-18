@@ -1,0 +1,16 @@
+{
+	"name": "taffy",
+	"version": "0.0.1",
+	"description": "component of my thesis project, still under development",
+	"keywords": [],
+	"license": "UNLICENSED",
+	"main": "index.js",
+	"dependencies": {
+		"eslint": "^4.19.1",
+		"npm": "^6.1.0",
+		"tfjs": "^0.6.0"
+	},
+	"scripts": {
+		"test": "node_modules/eslint/bin/eslint.js ."
+	}
+}

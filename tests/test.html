@@ -1,0 +1,40 @@
+<!-- running tests  -->
+<script type='module'>
+import {test} from "./test.js"
+import tf from '../deps/tf.js'
+
+window.old_console_log = console.log
+window.console.log = (...a) => {window.old_console_log(...a);document.body.innerHTML += a.join(' ') + "<br>";}
+
+window.test = () => test(tf)
+window.test()
+
+window.console.log = window.old_console_log
+</script>
+
+
+
+<!-- example of compiling and using tfjs packager  -->
+<script type='module'>
+import {pull_and_package} from '../index.js'
+import {lib_3} from './sample_libs.js'
+import tf from '../deps/tf.js'
+
+const input_desc = {"X": {"shape": ['batch',784], "dtype": "float32"}}, 
+fn_factory = pull_and_package('tfjs', lib_3(), 'probs', input_desc),
+fn = new fn_factory(tf),
+sample_output = fn.forward({X:tf.tensor([Array(784).fill(1)])})
+console.log('fn:', fn)
+console.log('sample_output:', sample_output)
+</script>
+
+
+
+<!-- MNIST example  -->
+<script type='module'>
+import {run as run_MNIST_no_conv} from './example_training/MNIST_no_conv.js'
+import tf from '../deps/tf.js'
+
+console.log("Running MNIST training (no convolution)")
+run_MNIST_no_conv(tf)
+</script>
