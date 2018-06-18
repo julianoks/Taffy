@@ -6,9 +6,11 @@
 	"license": "UNLICENSED",
 	"main": "index.js",
 	"dependencies": {
-		"eslint": "^4.19.1"
+		"eslint": "^4.19.1",
+		"rollup": "^0.60.7"
 	},
 	"scripts": {
-		"test": "node_modules/eslint/bin/eslint.js ."
+		"test": "node_modules/eslint/bin/eslint.js .",
+		"build": "node_modules/rollup/bin/rollup index.js --format umd --name 'taffy' --file taffy.js"
 	}
 }
