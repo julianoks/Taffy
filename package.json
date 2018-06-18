@@ -6,9 +6,7 @@
 	"license": "UNLICENSED",
 	"main": "index.js",
 	"dependencies": {
-		"eslint": "^4.19.1",
-		"npm": "^6.1.0",
-		"tfjs": "^0.6.0"
+		"eslint": "^4.19.1"
 	},
 	"scripts": {
 		"test": "node_modules/eslint/bin/eslint.js ."
