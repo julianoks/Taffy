@@ -18,7 +18,7 @@ export function run(tf,
 			'indices': {'shape': ['batch'], 'dtype': 'int32'}}, 
 		loss_fn_factory = pull_and_package('tfjs', lib_3(), 
 			'total_loss', lossInpDesc),
-		loss_fn = new loss_fn_factory()
+		loss_fn = new loss_fn_factory(tf)
 	console.log('loss_fn:', loss_fn)
 
 	get_train_data(tf, example_size).then(example_data => {
@@ -29,7 +29,7 @@ export function run(tf,
 			const loss_history = loss_fn.optimize('total_loss:0',
 				training_data, batch_size, iterations)
 			console.log('loss history:', loss_history)
-			let inheritor = new loss_fn_factory(),
+			let inheritor = new loss_fn_factory(tf),
 				probs_inherit = new (pull_and_package('tfjs', lib_3(), 'probs',
 					{X: lossInpDesc['X']}))()
 			probs_inherit.inherit_vars(loss_fn, 'probs/', 'probs/')
