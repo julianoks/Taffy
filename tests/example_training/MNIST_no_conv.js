@@ -31,7 +31,7 @@ export function run(tf,
 			console.log('loss history:', loss_history)
 			let inheritor = new loss_fn_factory(tf),
 				probs_inherit = new (pull_and_package('tfjs', lib_3(), 'probs',
-					{X: lossInpDesc['X']}))()
+					{X: lossInpDesc['X']}))(tf)
 			probs_inherit.inherit_vars(loss_fn, 'probs/', 'probs/')
 			console.log('example\'s indices:', example_data.indices.toString())
 			console.log('output of probs module (w/inherited values):',
