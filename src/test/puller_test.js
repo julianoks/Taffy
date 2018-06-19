@@ -2,6 +2,7 @@ import {stage_one} from '../puller/stage_one.js'
 import {stage_two} from '../puller/stage_two.js'
 import {stage_three} from '../puller/stage_three.js'
 import {lib_1} from './sample_libs.js'
+import tape from 'tape'
 
 export function test(){
 	console.log('Stage one test: ', test_stage_one()?  '✅' : '❌')
@@ -112,6 +113,11 @@ function test_stage_one(){
 	return a_nodes.includes(JSON.stringify(expected))
 }
 
+tape('Taffy Puller, stage one', t => {
+	t.equal(test_stage_one(), true)
+	t.end()
+})
+
 // tests for stage 2
 function test_stage_two(){
 	const stage_one_out = stage_one(lib_1()),
@@ -126,6 +132,11 @@ function test_stage_two(){
 		JSON.stringify(output.map(k => tensor_trace[k]))
 }
 
+tape('Taffy Puller, stage two', t => {
+	t.equal(test_stage_two(), true)
+	t.end()
+})
+
 // tests for stage 3
 function test_stage_three(){
 	const stage_one_out = stage_one(lib_1()),
@@ -138,3 +149,10 @@ function test_stage_three(){
 	delete stage_three_out.stage_two
 	return JSON.stringify(expectedStage3) == JSON.stringify(stage_three_out)
 }
+
+
+tape('Taffy Puller, stage three', t => {
+	t.equal(test_stage_three(), true)
+	t.end()
+})
+

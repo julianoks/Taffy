@@ -1,12 +1,7 @@
 import {topological_sort} from '../util/graph.js'
 import {primitives} from '../util/operations.js'
 import {constructors} from '../util/taffy_constructors.js'
-
-export function test(){
-	console.log('Topological sort test: ', test_topological_sort()? '✅' : '❌')
-	console.log('matmul test: ', test_matmul()? '✅' : '❌')
-	console.log('multiply test: ', test_multiply()? '✅' : '❌')
-}
+import tape from 'tape'
 
 // test topological sort
 function test_topological_sort(){
@@ -37,7 +32,10 @@ function test_topological_sort(){
 		},]
 	return tests.map(test_on_G).every(x=>x)
 }
-
+tape('topological sort', t => {
+	t.equal(test_topological_sort(), true)
+	t.end()
+})
 
 
 /*
@@ -76,9 +74,11 @@ function testMatmul2(){
 	return JSON.stringify(expected) == JSON.stringify(got)
 }
 
-function test_matmul(){
-	return testMatmul1() && testMatmul2()
-}
+tape('matmul operation', t => {
+	t.equal(testMatmul1(), true)
+	t.equal(testMatmul2(), true)
+	t.end()
+})
 
 
 
@@ -113,6 +113,11 @@ function testMultiply3(){
 	return JSON.stringify(got) == JSON.stringify(expected)
 }
 
-function test_multiply(){
-	return testMultiply1() && testMultiply2() && testMultiply3()
-}
+
+
+tape('multiply operation', t => {
+	t.equal(testMultiply1(), true)
+	t.equal(testMultiply2(), true)
+	t.equal(testMultiply3(), true)
+	t.end()
+})
