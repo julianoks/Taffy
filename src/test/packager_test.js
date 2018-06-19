@@ -18,7 +18,7 @@ function arraysClose(arr1, arr2, epsilon=1e-4){
 		f2 = flatten(arr2)
 	if(f1.length !== f2.length) return false
 	for(let i in f1){
-		if(Math.abs(f1[i]-f2[i]) > epsilon) return false
+		if(Math.abs((f1[i]-f2[i])/f1[i]) > epsilon) return false
 	}
 	return true
 }
@@ -40,7 +40,7 @@ tape('TFJS packager, library 1', t => {
 			[1,1,1,1,1,1],
 			[3814271.5,3814271.5,3814271.5,3814271.5,3814271.5,3814271.5]
 		]
-	t.equal(true, arraysClose(expected, outputVals))
+	t.ok(arraysClose(expected, outputVals))
 	t.end()
 })
 
@@ -62,7 +62,7 @@ tape('TFJS packager, library 2', t => {
 				0,0.27040621638298035,1.2105419635772705,0,2.227431297302246,
 				0.4541168808937073,0,0.4208914637565613,0,0.8518303632736206,0]
 		]
-	t.equal(true, arraysClose(expected, outputVals))
+	t.ok(arraysClose(expected, outputVals))
 	t.end()
 })
 
@@ -99,6 +99,6 @@ tape('TFJS packager, library 3', t => {
 			0.09999162703752518,0.10002046823501587,
 			0.10000043362379074,0.10001634806394577]
 	]
-	t.equal(true, arraysClose(expected, outputVals))
+	t.ok(arraysClose(expected, outputVals))
 	t.end()
 })
