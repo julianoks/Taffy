@@ -14,15 +14,15 @@ export const packagers = {
 	tfjs: tfjs_constructor
 };
 
-export function puller(library, module_name, input_descriptions){
-	const one_out = stage_one(library),
+export function puller(library, module_name, input_descriptions, prune=true){
+	const one_out = stage_one(library, prune),
 		two_out = stage_two(one_out, module_name, input_descriptions),
-		three_out = stage_three(two_out)
+		three_out = stage_three(two_out, prune)
 	return three_out
 }
 
 export function pull_and_package(packager_name,
-	library, module_name, input_descriptions){
-	const pulled = puller(library, module_name, input_descriptions)
+	library, module_name, input_descriptions, prune=true){
+	const pulled = puller(library, module_name, input_descriptions, prune)
 	return packagers[packager_name](pulled)
 }

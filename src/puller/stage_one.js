@@ -1,13 +1,14 @@
 import {topological_sort, prune_and_topsort} from '../util/graph.js'
 
-function pruneAndTopsortNodes(nodes, outputNames){
+function pruneAndTopsortNodes(nodes, outputNames, prune){
 	const stripIndices = arr => arr.map(s => s.slice(0,s.lastIndexOf(':'))),
 		nodeDict = nodes.reduce((a,n) => Object.assign(a,{[n.name]: n}), {}),
-		nodeDeps = nodes.reduce(
-			(a,n) => Object.assign(a,{[n.name]: {in: stripIndices(n.input)}}),
-			{})
-	return prune_and_topsort(nodeDeps, stripIndices(outputNames))
-		.map(k => nodeDict[k])
+		nodeDeps = nodes.reduce((a,n) => 
+			Object.assign(a,{[n.name]: {in: stripIndices(n.input)}}), {})
+	const graph = prune?
+		prune_and_topsort(nodeDeps, stripIndices(outputNames)) :
+		topological_sort(nodeDeps)
+	return graph.map(k => nodeDict[k])
 }
 
 // node to module's list of nodes replacement rule
@@ -32,7 +33,7 @@ function nodeToModule(parentNode, module){
 		op: 'identity', literal: []}])
 }
 
-export function stage_one(library){
+export function stage_one(library, prune=true){
 	// build dependency graph of modules and find topological ordering
 	const origModules = library.modules.reduce(
 			(a,x) => Object.assign(a, {[x.name]: x}), {}),
@@ -43,16 +44,16 @@ export function stage_one(library){
 	// flatten modules
 	const flattened = moduleOrder.reduce((a, modName)=> {
 		const modDeps = new Set(deps[modName].in),
-			origModule = origModules[modName],
-			nodes = pruneAndTopsortNodes(origModule.nodes, origModule.output)
+			origMod = origModules[modName],
+			nodes = pruneAndTopsortNodes(origMod.nodes, origMod.output, prune)
 				.map(node => modDeps.has(node.op)?
 					nodeToModule(node, a[node.op]) :
 					[node])
 				.reduce((x,z) => x.concat(z), [])
 		return Object.assign(a, {[modName]: {
 			name: 	modName,
-			input: 	origModule.input,
-			output: origModule.output,
+			input: 	origMod.input,
+			output: origMod.output,
 			nodes: 	nodes}})
 	}, {})
 	return {modules: flattened}
