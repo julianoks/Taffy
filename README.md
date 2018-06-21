@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.com/julianoks/Taffy.svg?token=cyeFuKKiwnyJyRizTQxr&branch=master)](https://travis-ci.com/julianoks/Taffy)
 
 TODO
-- [ ] taffy puller optional pruning (implemented, needs tests)
+- [x] taffy puller optional pruning
 - [ ] convolution op
 - [ ] RNN op / higher-order function
 - [ ] higher order control operations

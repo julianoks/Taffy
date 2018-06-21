@@ -2,6 +2,7 @@ import {stage_one} from '../puller/stage_one.js'
 import {stage_two} from '../puller/stage_two.js'
 import {stage_three} from '../puller/stage_three.js'
 import {lib_1, lib_4} from './sample_libs.js'
+import {puller} from '../index.js'
 import tape from 'tape'
 
 const expectedStage2Out = [
@@ -187,16 +188,31 @@ const lib4ExpectedStageThree = {
 	'name': 'only_module'
 }
 
-tape('Taffy Puller, lib 4', t => {
+tape('Taffy Puller, lib 4 with pruning', t => {
 	const lib = lib_4()
 	const input_desc = {
 			'in1': {'shape':[], 'dtype':'float32'},
 			'in2': {'shape':[], 'dtype':'float32'}
 		},
-		one = stage_one(lib),
-		two = stage_two(one, 'only_module', input_desc),
-		three = stage_three(two)
+		three = puller(lib, 'only_module', input_desc)
 	delete three['stage_two']
 	t.deepEqual(three, lib4ExpectedStageThree)
+	t.end()
+})
+
+tape('Taffy Puller, lib 4 without pruning', t => {
+	const lib = lib_4()
+	const input_desc = {
+		'in1': {'shape':[], 'dtype':'float32'},
+		'in2': {'shape':[], 'dtype':'float32'}
+	}
+	let three = puller(lib, 'only_module', input_desc, false)
+	delete three['stage_two']
+	const subtractedNode = {'name': 'subtracted',
+		'op': 'subtract', 'input': ['in1:0', 'in2:0'], 'attr': {}}
+	let expected = Object.assign({}, lib4ExpectedStageThree)
+	expected.nodes = lib4ExpectedStageThree.nodes.slice()
+	expected.nodes.splice(2, 0, subtractedNode)
+	t.deepEqual(three, expected)
 	t.end()
 })
