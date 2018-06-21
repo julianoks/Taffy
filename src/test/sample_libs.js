@@ -201,3 +201,16 @@ export function lib_3(){
 		log_loss_module, total_loss_module])
 }
 
+export function lib_4(){
+	const nodes = [
+			new node('in1', 'placeholder', []),
+			new node('in2', 'placeholder', []),
+			new node('added', 'add', ['in1:0', 'in2:0']),
+			// 'subtracted' should be pruned
+			new node('subtracted', 'subtract', ['in1:0', 'in2:0']),
+			new node('out', 'identity', ['added:0'])
+		],
+		onlyModule = new module('only_module', ['in1', 'in2'], ['out:0'],
+			nodes, [])
+	return new library([onlyModule])
+}

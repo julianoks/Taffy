@@ -1,14 +1,8 @@
 import {stage_one} from '../puller/stage_one.js'
 import {stage_two} from '../puller/stage_two.js'
 import {stage_three} from '../puller/stage_three.js'
-import {lib_1} from './sample_libs.js'
+import {lib_1, lib_4} from './sample_libs.js'
 import tape from 'tape'
-
-export function test(){
-	console.log('Stage one test: ', test_stage_one()?  '✅' : '❌')
-	console.log('Stage two test: ', test_stage_two()?  '✅' : '❌')
-	console.log('Stage three test: ', test_stage_three()?  '✅' : '❌')
-}
 
 const expectedStage2Out = [
 	{
@@ -107,14 +101,17 @@ function test_stage_one(){
 		a_nodes = stage_one(sample_lib_1)
 			.modules.module_a.nodes
 			.map(JSON.stringify)
-	const expected = {'name':'a_op1/b_op1',
+	const expected = {
+		'name':'a_op1/b_op1',
 		'input':['a_op1/b_op1/c_op1:0', 'a_op1/b_op1/c_op2:0'],
-		'op':'identity', 'literal':[]}
+		'op':'identity',
+		'literal':[]
+	}
 	return a_nodes.includes(JSON.stringify(expected))
 }
 
 tape('Taffy Puller, stage one', t => {
-	t.equal(test_stage_one(), true)
+	t.ok(test_stage_one())
 	t.end()
 })
 
@@ -133,7 +130,7 @@ function test_stage_two(){
 }
 
 tape('Taffy Puller, stage two', t => {
-	t.equal(test_stage_two(), true)
+	t.ok(test_stage_two())
 	t.end()
 })
 
@@ -152,7 +149,54 @@ function test_stage_three(){
 
 
 tape('Taffy Puller, stage three', t => {
-	t.equal(test_stage_three(), true)
+	t.ok(test_stage_three())
 	t.end()
 })
 
+
+const lib4ExpectedStageThree = {
+	'nodes': [
+		{
+			'name': 'in2',
+			'op': 'placeholder',
+			'input': [],
+			'attr': {}
+		},
+		{
+			'name': 'in1',
+			'op': 'placeholder',
+			'input': [],
+			'attr': {}
+		},
+		{
+			'name': 'added',
+			'op': 'add',
+			'input': [
+				'in1:0',
+				'in2:0'
+			],
+			'attr': {}
+		}
+	],
+	'output': [
+		'added:0'
+	],
+	'output_names': [
+		'out:0'
+	],
+	'name': 'only_module'
+}
+
+tape('Taffy Puller, lib 4', t => {
+	const lib = lib_4()
+	const input_desc = {
+			'in1': {'shape':[], 'dtype':'float32'},
+			'in2': {'shape':[], 'dtype':'float32'}
+		},
+		one = stage_one(lib),
+		two = stage_two(one, 'only_module', input_desc),
+		three = stage_three(two)
+	delete three['stage_two']
+	t.deepEqual(three, lib4ExpectedStageThree)
+	t.end()
+})

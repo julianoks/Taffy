@@ -1,6 +1,6 @@
 import {unwrapped_to_constructor as tfjs_constructor} from '../packager/tfjs.js'
 import {puller} from '../index.js'
-import {lib_1, lib_2, lib_3} from './sample_libs.js'
+import {lib_1, lib_2, lib_3, lib_4} from './sample_libs.js'
 import {tf} from '../deps/tf.js'
 import tape from 'tape'
 
@@ -22,6 +22,7 @@ function arraysClose(arr1, arr2, epsilon=1e-4){
 	}
 	return true
 }
+
 
 tape('TFJS packager, library 1', t => {
 	const lib = lib_1(),
@@ -66,6 +67,7 @@ tape('TFJS packager, library 2', t => {
 	t.end()
 })
 
+
 tape('TFJS packager, library 3', t => {
 	const lib = lib_3(),
 		input_desc = {'X': {'shape': ['batch',784], 'dtype': 'float32'}},
@@ -99,6 +101,30 @@ tape('TFJS packager, library 3', t => {
 			0.09999162703752518,0.10002046823501587,
 			0.10000043362379074,0.10001634806394577]
 	]
+	t.ok(arraysClose(expected, outputVals))
+	t.end()
+})
+
+
+tape('TFJS packager, library 4', t => {
+	const lib = lib_4(),
+		input_desc = {
+			'in1': {'shape':[], 'dtype':'float32'},
+			'in2': {'shape':[], 'dtype':'float32'}
+		},
+		unwrapped_lib = puller(lib, 'only_module', input_desc),
+		factory = tfjs_constructor(unwrapped_lib),
+		fn = new factory(tf)
+	deterministic_populate_variables(fn)
+	const input = {
+			in1: tf.zeros([]),
+			in2: tf.ones([])
+		},
+		output = fn.forward(input),
+		outputVals = Object.values(output).sort()
+			.map(t => Array.from(t.dataSync())),
+		expected = [[1]]
+	console.log()
 	t.ok(arraysClose(expected, outputVals))
 	t.end()
 })
