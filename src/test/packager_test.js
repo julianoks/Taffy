@@ -1,4 +1,6 @@
-import {unwrapped_to_constructor as tfjs_constructor} from '../packager/tfjs.js'
+import {unwrapped_to_constructor as tfjs_constructor,
+	opConversionMap} from '../packager/tfjs.js'
+import {primitives} from '../util/operations.js'
 import {puller} from '../index.js'
 import {lib_1, lib_2, lib_3, lib_4} from './sample_libs.js'
 import {tf} from '../deps/tf.js'
@@ -128,3 +130,12 @@ tape('TFJS packager, library 4', t => {
 	t.ok(arraysClose(expected, outputVals))
 	t.end()
 })
+
+tape('TFJS packager can convert all tensor operations', t => {
+	const opsMissing = Object.values(primitives)
+		.filter(({type}) => type=='tensor')
+		.filter(({name}) => !opConversionMap.hasOwnProperty(name))
+	t.ok(opsMissing.length == 0)
+	t.end()
+})
+

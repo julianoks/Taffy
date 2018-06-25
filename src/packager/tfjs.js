@@ -105,7 +105,7 @@ function op_conversion_protected_pow(node){
 	return `[${result}]`
 }
 
-const opConversionMap = {
+export const opConversionMap = {
 	get_tensor: op_conversion_get_tensor,
 	placeholder: () => {throw('placeholder shouldn\'t have been called...')},
 	variable: node => '[this.variables[this.inverse_name_map[' +
@@ -118,6 +118,7 @@ const opConversionMap = {
 	add: op_conversion_add,
 	multiply: op_conversion_mul,
 	divide: node => `[tf.div(${node.input})]`,
+	subtract: node => `[tf.sub(${node.input})]`,
 	scalar: n => `[tf.scalar(${[+n.attr.num, stringify(n.attr.dtype)]})]`,
 	pow: op_conversion_protected_pow,
 	sqrt: node => `[tf.sqrt(${node.input[0]})]`,
