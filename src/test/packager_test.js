@@ -168,7 +168,7 @@ tape('TFJS packager, convolution 2D', t => {
 		outputVals = Object.values(output).sort()
 			.map(t => Array.from(t.dataSync())),
 		expected = tf.conv2d(input.x, input.filter, 1, 'same').dataSync()
-	t.deepEqual(output['conv:0'].shape, [1, ])
+	t.deepEqual(output['conv:0'], [1, 10, 11, 15])
 	t.ok(arraysClose(expected, outputVals))
 	t.end()
 })
