@@ -1,4 +1,5 @@
 import {constructors} from './taffy_constructors.js'
+import {__convolution__desc_func} from './convolution.js'
 
 const {op_doc, tensor_description, tensor_shape} = constructors
 
@@ -7,9 +8,14 @@ const {op_doc, tensor_description, tensor_shape} = constructors
 ---------- helper fns -----------
 ---------------------------------
 */
-const is_tensor = obj => obj.constructor === tensor_description
+const isTensor = obj => obj.constructor === tensor_description
 
-export function broadcast_shapes(tensors){
+// TODO: broadcast to most general dtype
+export function broadcastDTypes(tensors){
+	return tensors[0].dtype
+}
+
+export function broadcastShapes(tensors){
 	const rank = Math.max(...tensors.map(t=>t.shape.length)),
 		shapes = tensors
 			.map(t => Array(rank-t.shape.length).fill(1).concat(t.shape)),
@@ -29,7 +35,7 @@ export function broadcast_shapes(tensors){
 			}
 			return numbersNotOne.length == 0? 1 : numbersNotOne[0]
 		}),
-		res_dtype = tensors[0].dtype
+		res_dtype = broadcastDTypes(tensors)
 	if(!tensors.every(t => t.dtype == res_dtype)){
 		throw({message: 'tensors are of different dtypes'})
 	}
@@ -62,7 +68,7 @@ const __placeholder__primitive = {
 function __relu__desc_func(tensor_trace, node, tensors){
 	if(tensors.length<1) throw({message: 'must take >=1 tensors'})
 	tensors.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
 	const results = tensors.reduce((acc, tensor, i) => {
 		const shape = new tensor_shape(tensor.shape),
@@ -93,7 +99,7 @@ const __relu__primitive = {
 function __sigmoid__desc_func(tensor_trace, node, tensors){
 	if(tensors.length<1) throw({message: 'must take >=1 tensors'})
 	tensors.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
 	const results = tensors.reduce((acc, tensor, i) => {
 		const shape = new tensor_shape(tensor.shape),
@@ -124,7 +130,7 @@ const __sigmoid__primitive = {
 function __tanh__desc_func(tensor_trace, node, tensors){
 	if(tensors.length<1) throw({message: 'must take >=1 tensors'})
 	tensors.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
 	const results = tensors.reduce((acc, tensor, i) => {
 		const shape = new tensor_shape(tensor.shape),
@@ -154,7 +160,7 @@ const __tanh__primitive = {
 function __exp__desc_func(tensor_trace, node, tensors){
 	if(tensors.length!==1) throw({message: 'must take 1 tensor'})
 	tensors.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
 	const tensor = tensors[0],
 		shape = new tensor_shape(tensor.shape),
@@ -183,7 +189,7 @@ const __exp__primitive = {
 function __abs__desc_func(tensor_trace, node, tensors){
 	if(tensors.length!==1) throw({message: 'must take 1 tensor'})
 	tensors.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
 	const tensor = tensors[0],
 		shape = new tensor_shape(tensor.shape),
@@ -212,7 +218,7 @@ const __abs__primitive = {
 function __negate__desc_func(tensor_trace, node, tensors){
 	if(tensors.length!==1) throw({message: 'must take 1 tensor'})
 	tensors.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
 	const tensor = tensors[0],
 		shape = new tensor_shape(tensor.shape),
@@ -241,7 +247,7 @@ const __negate__primitive = {
 function __sqrt__desc_func(tensor_trace, node, tensors){
 	if(tensors.length!==1) throw({message: 'must take 1 tensor'})
 	tensors.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
 	const tensor = tensors[0],
 		shape = new tensor_shape(tensor.shape),
@@ -270,7 +276,7 @@ const __sqrt__primitive = {
 function __matmul__desc_func(tensor_trace, node, tensors){
 	if(tensors.length!=2) throw({message: 'must take 2 tensors'})
 	tensors.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
 	if(tensors[0].dtype !== tensors[1].dtype){
 		throw({message: 'tensors are of different dtypes'})
@@ -327,9 +333,9 @@ const __matmul__primitive = {
 function __add__desc_func(tensor_trace, node, tensors){
 	if(tensors.length==0) throw({message: 'must take n>=1 tensors'})
 	tensors.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
-	const {shape, dtype} = broadcast_shapes(tensors),
+	const {shape, dtype} = broadcastShapes(tensors),
 		out = new tensor_description(shape, dtype, node.name+':0', 'add',
 			tensors.map(t => t.val_ref), {}),
 		results = {[out.val_ref]: out}
@@ -354,9 +360,9 @@ const __add__primitive = {
 function __subtract__desc_func(tensor_trace, node, tensors){
 	if(tensors.length!==2) throw({message: 'must take 2 tensors'})
 	tensors.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
-	const {shape, dtype} = broadcast_shapes(tensors),
+	const {shape, dtype} = broadcastShapes(tensors),
 		out = new tensor_description(shape, dtype, node.name+':0', 'subtract',
 			tensors.map(t => t.val_ref), {}),
 		results = {[out.val_ref]: out}
@@ -382,9 +388,9 @@ const __subtract__primitive = {
 function __multiply__desc_func(tensor_trace, node, tensors){
 	if(tensors.length==0) throw({message: 'must take n>=1 tensors'})
 	tensors.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
-	const {shape, dtype} = broadcast_shapes(tensors),
+	const {shape, dtype} = broadcastShapes(tensors),
 		out = new tensor_description(shape, dtype, node.name+':0', 'multiply',
 			tensors.map(t => t.val_ref), {}),
 		results = {[out.val_ref]: out}
@@ -410,9 +416,9 @@ const __multiply__primitive = {
 function __divide__desc_func(tensor_trace, node, tensors){
 	if(tensors.length!==2) throw({message: 'must take 2 tensors'})
 	tensors.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
-	const {shape, dtype} = broadcast_shapes(tensors),
+	const {shape, dtype} = broadcastShapes(tensors),
 		out = new tensor_description(shape, dtype, node.name+':0', 'divide',
 			tensors.map(t => t.val_ref), {}),
 		results = {[out.val_ref]: out}
@@ -438,9 +444,9 @@ const __divide__primitive = {
 function __pow__desc_func(tensor_trace, node, tensors){
 	if(tensors.length!==2) throw({message: 'must take 2 tensors'})
 	tensors.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
-	const {shape, dtype} = broadcast_shapes(tensors),
+	const {shape, dtype} = broadcastShapes(tensors),
 		out = new tensor_description(shape, dtype, node.name+':0', 'pow',
 			tensors.map(t => t.val_ref), {}),
 		results = {[out.val_ref]: out}
@@ -534,7 +540,7 @@ const __get_tensor__primitive = {
 */
 function __variable__desc_func(tensor_trace, node, inputs){
 	if(inputs.length != 1) throw({message: 'must take exactly 1 input'})
-	if(!is_tensor(inputs[0])) throw({message: 'input must be a tensor'})
+	if(!isTensor(inputs[0])) throw({message: 'input must be a tensor'})
 	const results = inputs.reduce((acc,v,i)=> {
 		const name = node.name+':' + i,
 			{shape, dtype} = v,
@@ -713,7 +719,7 @@ const __unpack_list__primitive = {
 function __softmax__desc_func(tensor_trace, node, inputs){
 	if(inputs.length!==1) throw({message: 'must take 1 tensor'})
 	inputs.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
 	const tensor = inputs[0],
 		shape = new tensor_shape(tensor.shape),
@@ -743,7 +749,7 @@ const __softmax__primitive = {
 function __log__desc_func(tensor_trace, node, inputs){
 	if(inputs.length!==1) throw({message: 'must take 1 tensor'})
 	inputs.forEach((t,i) => {
-		if(!is_tensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
+		if(!isTensor(t)) throw({message: 'argument not a tensor', i:i, arg: t})
 	})
 	const tensor = inputs[0],
 		shape = new tensor_shape(tensor.shape),
@@ -772,7 +778,7 @@ function __reduce_sum__desc_func(tensor_trace, node, inputs){
 	if(!(inputs.length == 1 || inputs.length == 2)){
 		throw({message: 'must take one or two inputs'})
 	}
-	if(!is_tensor(inputs[0])){
+	if(!isTensor(inputs[0])){
 		throw({message: 'input must be a tensor'})	
 	} 
 	const tensor = inputs[0],
@@ -810,7 +816,7 @@ function __reduce_avg__desc_func(tensor_trace, node, inputs){
 	if(!(inputs.length == 1 || inputs.length == 2)){
 		throw({message: 'must take one or two inputs'})
 	}
-	if(!is_tensor(inputs[0])) throw({message: 'input must be a tensor'})
+	if(!isTensor(inputs[0])) throw({message: 'input must be a tensor'})
 	const tensor = inputs[0],
 		default_perm = tensor.shape.map((_,i)=>i),
 		axis = !isNaN(inputs[1])? [inputs[1]] :
@@ -847,7 +853,7 @@ function __transpose__desc_func(tensor_trace, node, inputs){
 	if(inputs.length == 1 || inputs.length == 2){
 		throw({message: 'must take one or two inputs'})
 	}
-	if(!is_tensor(inputs[0])) throw({message: 'first input must be a tensor'})
+	if(!isTensor(inputs[0])) throw({message: 'first input must be a tensor'})
 	const tensor = inputs[0],
 		default_perm = Array(tensor.shape.length).fill()
 			.map((_,i)=>i).reverse(),
@@ -884,7 +890,7 @@ const __transpose__primitive = {
 */
 function __one_hot__desc_func(tensor_trace, node, inputs){
 	if(inputs.length != 2) throw({message: 'must take two inputs'})
-	if(!(is_tensor(inputs[0]) && inputs[0].shape.length == 1)){
+	if(!(isTensor(inputs[0]) && inputs[0].shape.length == 1)){
 		throw({message: 'first input must be a rank 1 tensor'})
 	}
 	if(isNaN(inputs[1]) || Math.floor(+inputs[1])<2){
@@ -919,11 +925,11 @@ const __one_hot__primitive = {
 function __cast__desc_func(tensor_trace, node, inputs){
 	if(inputs.length != 2) throw({message: 'must take two inputs'})
 	const [tensor, given_dtype] = inputs
-	if(!is_tensor(tensor)) throw({message: 'first input must be a tensor'})
-	if(!(typeof(given_dtype) == 'string' || is_tensor(given_dtype))){
+	if(!isTensor(tensor)) throw({message: 'first input must be a tensor'})
+	if(!(typeof(given_dtype) == 'string' || isTensor(given_dtype))){
 		throw({message: 'second input must be a string or a tensor'})	
 	}
-	const dtype = is_tensor(given_dtype)? given_dtype.dtype : given_dtype,
+	const dtype = isTensor(given_dtype)? given_dtype.dtype : given_dtype,
 		shape = new tensor_shape(tensor.shape),
 		out = new tensor_description(shape, dtype, node.name+':0', 'cast',
 			[tensor.val_ref], {dtype:dtype}),
@@ -941,8 +947,19 @@ const __cast__primitive = {
 		'casts a tensor to a specified dtype')
 }
 
-
-
+/*
+---------------------------------
+--------- convolution  ----------
+---------------------------------
+*/
+const __convolution__primitive = {
+	name: 'convolution',
+	type: 'tensor',
+	desc_function: __convolution__desc_func,
+	doc: new op_doc(['tensor', ''],
+		['tensor cast as dtype'],
+		'casts a tensor to a specified dtype')
+}
 
 export const primitives = [
 	__placeholder__primitive,
@@ -976,5 +993,6 @@ export const primitives = [
 	__reduce_avg__primitive,
 	__subtract__primitive,
 	__abs__primitive,
+	__convolution__primitive,
 ].reduce((a,p)=>Object.assign(a, {[p.name]: p}), {})
 

@@ -105,6 +105,10 @@ function op_conversion_protected_pow(node){
 	return `[${result}]`
 }
 
+function convolutionWrapper(node){
+	throw('IMPLEMENT ME', node)
+}
+
 export const opConversionMap = {
 	get_tensor: op_conversion_get_tensor,
 	placeholder: () => {throw('placeholder shouldn\'t have been called...')},
@@ -132,6 +136,7 @@ export const opConversionMap = {
 	one_hot: node => `[tf.oneHot(${node.input[0]}, ${node.attr.n_colls})]`,
 	cast: n => `[tf.cast(${n.input[0]}, ${stringify(n.attr.dtype)})]`,
 	abs: node => `[tf.abs(${node.input[0]})]`,
+	convolution: convolutionWrapper,
 }
 
 
