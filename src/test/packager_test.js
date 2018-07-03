@@ -5,6 +5,9 @@ import {puller} from '../index.js'
 import {lib_1, lib_2, lib_3, lib_4} from './sample_libs.js'
 import {tf} from '../deps/tf.js'
 import tape from 'tape'
+import {constructors} from '../util/taffy_constructors.js'
+
+const {node, module, library} = constructors
 
 function deterministic_populate_variables(fn){
 	fn.variables = Object.keys(fn.variables).sort().reduce((acc,k,i) => {
@@ -126,7 +129,6 @@ tape('TFJS packager, library 4', t => {
 		outputVals = Object.values(output).sort()
 			.map(t => Array.from(t.dataSync())),
 		expected = [[1]]
-	console.log()
 	t.ok(arraysClose(expected, outputVals))
 	t.end()
 })
@@ -136,6 +138,38 @@ tape('TFJS packager can convert all tensor operations', t => {
 		.filter(({type}) => type=='tensor')
 		.filter(({name}) => !opConversionMap.hasOwnProperty(name))
 	t.ok(opsMissing.length == 0)
+	t.end()
+})
+
+tape('TFJS packager, convolution 2D', t => {
+	const lib = new library([new module('only_module',
+		['x', 'filter'],
+		['conv:0'],
+		[
+			new node('x', 'placeholder', []),
+			new node('filter', 'placeholder', []),
+			new node('literals', 'literals', [], ['1', '"same"']),
+			new node('stride', 'parse_json', ['literals:0']),
+			new node('padding', 'parse_json', ['literals:1']),
+			new node('conv', 'convolution',
+				['x:0', 'filter:0', 'stride:0', 'padding:0'])
+		])])
+	const inputDesc = {
+			x: {shape: [1,10,11,12], dtype: 'flaot32'},
+			filter: {shape: [2,2,12,15], dtype: 'flaot32'}
+		},
+		input = Object.entries(inputDesc).reduce((acc, [k,v]) => 
+			Object.assign(acc, {[k]: tf.ones(v.shape)}), {})
+
+	const unwrapped = puller(lib, 'only_module', inputDesc),
+		factory = tfjs_constructor(unwrapped),
+		fn = new factory(tf)
+	const output = fn.forward(input),
+		outputVals = Object.values(output).sort()
+			.map(t => Array.from(t.dataSync())),
+		expected = tf.conv2d(input.x, input.filter, 1, 'same').dataSync()
+	t.deepEqual(output['conv:0'].shape, [1, ])
+	t.ok(arraysClose(expected, outputVals))
 	t.end()
 })
 

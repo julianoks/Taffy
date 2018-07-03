@@ -1,12 +1,12 @@
 import {constructors} from './taffy_constructors.js'
 
-const {tensor_description} = constructors
+const {tensor_description, tensor_shape} = constructors
 
 const isTensor = obj => obj.constructor === tensor_description
 
 const zip = (...arrs) => arrs[0].map((_,i) => arrs.map(a=>a[i]))
 
-function strideToArray(filter, stride){
+function strideToArray(stride, filter){
 	if(Array.isArray(stride)) return stride
 	const nDims = filter.shape.length - 2
 	return Array(nDims).fill(stride)
@@ -33,7 +33,8 @@ function getConvOutShape(x, filter, stride, padding){
 				'Please change the stride or padding.'})
 		}
 	}
-	return [].concat(batchSize, middleOutDims, outChannels)
+	const resultShape = [].concat(batchSize, middleOutDims, outChannels)
+	return new tensor_shape(resultShape)
 }
 
 export function __convolution__desc_func(tensor_trace, node, inputs){
@@ -48,7 +49,7 @@ export function __convolution__desc_func(tensor_trace, node, inputs){
 	if(inputs[0].shape.length < 4){
 		throw({message: '`x` and `filter` must be of rank 4 or greater'})
 	}
-	if(inputs[0].slice(-1)[0] !== inputs[1].slice(-2)[0]){
+	if(inputs[0].shape.slice(-1)[0] !== inputs[1].shape.slice(-2)[0]){
 		throw({message: 'The second to last dimension of x ' +
 			`(shape ${inputs[0].shape}) ` +
 			'should equal the last dimension of filter ' +
@@ -56,7 +57,7 @@ export function __convolution__desc_func(tensor_trace, node, inputs){
 	}
 	if(inputs[2] !== undefined){
 		if(!isNaN(inputs[2])){
-			if(!(Number.isInteger(inputs[2]) && inputs>0)){
+			if(!(Number.isInteger(inputs[2]) && inputs[2]>0)){
 				const message = 'if `stride` is a number, ' +
 					'it must be a positive integer'
 				throw({message})
@@ -80,7 +81,7 @@ export function __convolution__desc_func(tensor_trace, node, inputs){
 		throw({message})
 	}
 	const [x, filter] = inputs.slice(0,2),
-		stride = strideToArray(inputs[2] || 1),
+		stride = strideToArray(inputs[2] || 1, filter),
 		padding = inputs[3] || 'same'
 	const resDType = x.dtype,
 		resShape = getConvOutShape(x, filter, stride, padding),

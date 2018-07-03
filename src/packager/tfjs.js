@@ -106,7 +106,7 @@ function op_conversion_protected_pow(node){
 }
 
 function convolutionWrapper(node){
-	throw('IMPLEMENT ME', node)
+	throw(['IMPLEMENT ME', node])
 }
 
 export const opConversionMap = {

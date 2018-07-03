@@ -956,9 +956,9 @@ const __convolution__primitive = {
 	name: 'convolution',
 	type: 'tensor',
 	desc_function: __convolution__desc_func,
-	doc: new op_doc(['tensor', ''],
-		['tensor cast as dtype'],
-		'casts a tensor to a specified dtype')
+	doc: new op_doc(['x', 'filter', '(optional) stride', '(optional) padding'],
+		['x convolved with filter'],
+		'convolves x with filter')
 }
 
 export const primitives = [
