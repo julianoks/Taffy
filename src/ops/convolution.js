@@ -1,4 +1,4 @@
-import {constructors} from './taffy_constructors.js'
+import {constructors} from '../util/taffy_constructors.js'
 
 const {tensor_description, tensor_shape} = constructors
 

@@ -1,5 +1,5 @@
 import {constructors} from '../util/taffy_constructors.js'
-import {primitives} from '../util/operations.js'
+import {primitives} from '../ops/operations.js'
 
 const isShape = v => v.constructor === constructors.tensor_shape
 const isTensor = v => v.constructor === constructors.tensor_description
