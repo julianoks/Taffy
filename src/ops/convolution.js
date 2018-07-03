@@ -83,10 +83,12 @@ export function __convolution__desc_func(tensor_trace, node, inputs){
 	const [x, filter] = inputs.slice(0,2),
 		stride = strideToArray(inputs[2] || 1, filter),
 		padding = inputs[3] || 'same'
-	const resDType = x.dtype,
-		resShape = getConvOutShape(x, filter, stride, padding),
-		out = new tensor_description(resShape, resDType, node.name+':0',
-			'convolution', [x.val_ref, filter.val_ref], {stride, padding}),
+	const dtype = x.dtype,
+		shape = getConvOutShape(x, filter, stride, padding),
+		out = new tensor_description(shape, dtype, node.name+':0',
+			'convolution',
+			[x.val_ref, filter.val_ref],
+			{stride, padding, shape: shape.shape}),
 		results = {[out.val_ref]: out}
 	Object.assign(tensor_trace, results)
 	return results

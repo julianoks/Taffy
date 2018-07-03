@@ -2,7 +2,8 @@
 
 TODO
 - [x] taffy puller optional pruning
-- [ ] convolution op
+- [x] convolution op
+- [ ] tests for convolution
 - [ ] RNN op / higher-order function
 - [ ] higher order control operations
 - [ ] research building tfjs packager constructor without eval, while maintaining serializability

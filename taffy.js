@@ -388,10 +388,12 @@
 		const [x, filter] = inputs.slice(0,2),
 			stride = strideToArray(inputs[2] || 1, filter),
 			padding = inputs[3] || 'same';
-		const resDType = x.dtype,
-			resShape = getConvOutShape(x, filter, stride, padding),
-			out = new tensor_description(resShape, resDType, node.name+':0',
-				'convolution', [x.val_ref, filter.val_ref], {stride, padding}),
+		const dtype = x.dtype,
+			shape = getConvOutShape(x, filter, stride, padding),
+			out = new tensor_description(shape, dtype, node.name+':0',
+				'convolution',
+				[x.val_ref, filter.val_ref],
+				{stride, padding, shape: shape.shape}),
 			results = {[out.val_ref]: out};
 		Object.assign(tensor_trace, results);
 		return results
@@ -1578,7 +1580,22 @@
 	}
 
 	function convolutionWrapper(node){
-		throw(['IMPLEMENT ME', node])
+		const [x, filter] = node.input,
+			{stride, padding, shape} = node.attr;
+		const ND = shape.length - 2,
+			availConvs = new Set([1, 2]);
+		if(!availConvs.has(ND)){
+			throw(`${ND}D convolution not yet supported, ` +
+				`only (${[...availConvs]})D supported`)
+		}
+		let result = '';
+		if(ND === 1){
+			result = `tf.conv1d(${x},${filter},${stride[0]},${stringify(padding)})`;
+		}else if(ND === 2){
+			result = `tf.conv2d(${x},${filter},` +
+				`${stringify(stride)},${stringify(padding)})`;
+		}
+		return `[${result}]`
 	}
 
 	const opConversionMap = {

@@ -155,12 +155,11 @@ tape('TFJS packager, convolution 2D', t => {
 				['x:0', 'filter:0', 'stride:0', 'padding:0'])
 		])])
 	const inputDesc = {
-			x: {shape: [1,10,11,12], dtype: 'flaot32'},
-			filter: {shape: [2,2,12,15], dtype: 'flaot32'}
+			x: {shape: [1,10,11,12], dtype: 'float32'},
+			filter: {shape: [2,2,12,15], dtype: 'float32'}
 		},
 		input = Object.entries(inputDesc).reduce((acc, [k,v]) => 
 			Object.assign(acc, {[k]: tf.ones(v.shape)}), {})
-
 	const unwrapped = puller(lib, 'only_module', inputDesc),
 		factory = tfjs_constructor(unwrapped),
 		fn = new factory(tf)
@@ -168,7 +167,7 @@ tape('TFJS packager, convolution 2D', t => {
 		outputVals = Object.values(output).sort()
 			.map(t => Array.from(t.dataSync())),
 		expected = tf.conv2d(input.x, input.filter, 1, 'same').dataSync()
-	t.deepEqual(output['conv:0'], [1, 10, 11, 15])
+	t.deepEqual(output['conv:0'].shape, [1, 10, 11, 15])
 	t.ok(arraysClose(expected, outputVals))
 	t.end()
 })
