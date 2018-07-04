@@ -9,6 +9,10 @@ import {constructors} from '../util/taffy_constructors.js'
 
 const {node, module, library} = constructors
 
+const tfRange = shape => tf.tensor(
+	Array(shape.reduce((a,b)=>a*b,1)).fill().map((_,i)=>i),
+	shape)
+
 function deterministic_populate_variables(fn){
 	fn.variables = Object.keys(fn.variables).sort().reduce((acc,k,i) => {
 		const shape = fn.variables[k].shape,
@@ -141,6 +145,37 @@ tape('TFJS packager can convert all tensor operations', t => {
 	t.end()
 })
 
+tape('TFJS packager, convolution 1D', t => {
+	const lib = new library([new module('only_module',
+		['x', 'filter'],
+		['conv:0'],
+		[
+			new node('x', 'placeholder', []),
+			new node('filter', 'placeholder', []),
+			new node('literals', 'literals', [], ['1', '"same"']),
+			new node('stride', 'parse_json', ['literals:0']),
+			new node('padding', 'parse_json', ['literals:1']),
+			new node('conv', 'convolution',
+				['x:0', 'filter:0', 'stride:0', 'padding:0'])
+		])])
+	const inputDesc = {
+			x: {shape: [1,10,12], dtype: 'float32'},
+			filter: {shape: [2,12,15], dtype: 'float32'}
+		},
+		input = Object.entries(inputDesc).reduce((acc, [k,v]) => 
+			Object.assign(acc, {[k]: tfRange(v.shape)}), {})
+	const unwrapped = puller(lib, 'only_module', inputDesc),
+		factory = tfjs_constructor(unwrapped),
+		fn = new factory(tf)
+	const output = fn.forward(input),
+		outputVals = Object.values(output).sort()
+			.map(t => Array.from(t.dataSync())),
+		expected = tf.conv1d(input.x, input.filter, 1, 'same').dataSync()
+	t.deepEqual(output['conv:0'].shape, [1, 10, 15])
+	t.ok(arraysClose(expected, outputVals))
+	t.end()
+})
+
 tape('TFJS packager, convolution 2D', t => {
 	const lib = new library([new module('only_module',
 		['x', 'filter'],
@@ -159,7 +194,7 @@ tape('TFJS packager, convolution 2D', t => {
 			filter: {shape: [2,2,12,15], dtype: 'float32'}
 		},
 		input = Object.entries(inputDesc).reduce((acc, [k,v]) => 
-			Object.assign(acc, {[k]: tf.ones(v.shape)}), {})
+			Object.assign(acc, {[k]: tfRange(v.shape)}), {})
 	const unwrapped = puller(lib, 'only_module', inputDesc),
 		factory = tfjs_constructor(unwrapped),
 		fn = new factory(tf)
