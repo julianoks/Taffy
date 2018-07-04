@@ -3,8 +3,9 @@
 TODO
 - [x] taffy puller optional pruning
 - [x] convolution op
-- [ ] tests for convolution
-- [ ] RNN op / higher-order function
-- [ ] higher order control operations
+- [ ] higher-order operations
+	- [ ] map
+	- [ ] fold/reduce
+		- RNNs should be implemented as a fold/reduce that returns x, f(x), f(f(x)), ....
 - [ ] research building tfjs packager constructor without eval, while maintaining serializability
 	- I think this is unnecessary for now.
