@@ -299,7 +299,7 @@
 			}
 
 			this.input = input;
-			this.output;
+			this.output = output;
 			this.doc = doc;
 		}
 
