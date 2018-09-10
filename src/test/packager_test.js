@@ -3,7 +3,7 @@ import {unwrapped_to_constructor as tfjs_constructor,
 import {primitives} from '../ops/operations.js'
 import {puller} from '../index.js'
 import {lib_1, lib_2, lib_3, lib_4} from './sample_libs.js'
-import {tf} from '../deps/tf.js'
+import {tf} from './deps/tf.js'
 import tape from 'tape'
 import {constructors} from '../util/taffy_constructors.js'
 

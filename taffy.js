@@ -351,8 +351,8 @@
 			throw({message: `x (rank ${inputs[0].shape.length}) and ` +
 				`filter (rank ${inputs[1].shape.length}) must be the same rank`})
 		}
-		if(inputs[0].shape.length < 4){
-			throw({message: '`x` and `filter` must be of rank 4 or greater'})
+		if(inputs[0].shape.length < 3){
+			throw({message: '`x` and `filter` must be of rank 3 or greater'})
 		}
 		if(inputs[0].shape.slice(-1)[0] !== inputs[1].shape.slice(-2)[0]){
 			throw({message: 'The second to last dimension of x ' +
