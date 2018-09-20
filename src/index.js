@@ -1,7 +1,9 @@
+export {constructors} from './util/taffy_constructors.js'
+export {primitives} from './ops/operations.js'
+
 import {stage_one} from './puller/stage_one.js'
 import {stage_two} from './puller/stage_two.js'
 import {stage_three} from './puller/stage_three.js'
-
 import {unwrapped_to_constructor as tfjs_constructor} from './packager/tfjs.js'
 
 export const stages = {
