@@ -850,7 +850,7 @@ const __reduce_avg__primitive = {
 ---------------------------------
 */
 function __transpose__desc_func(tensor_trace, node, inputs){
-	if(inputs.length == 1 || inputs.length == 2){
+	if(!(inputs.length == 1 || inputs.length == 2)){
 		throw({message: 'must take one or two inputs'})
 	}
 	if(!isTensor(inputs[0])) throw({message: 'first input must be a tensor'})
