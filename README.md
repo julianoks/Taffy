@@ -9,3 +9,4 @@ TODO
 		- RNNs should be implemented as a fold/reduce that returns x, f(x), f(f(x)), ....
 - [ ] research building tfjs packager constructor without eval, while maintaining serializability
 	- I think this is unnecessary for now.
+- [ ] standardize what description functions throw

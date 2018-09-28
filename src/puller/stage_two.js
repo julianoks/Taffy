@@ -37,9 +37,11 @@ export function stage_two(stageOneOut, moduleName, inputDescriptions){
 	flatModule.nodes.forEach(node => {
 		if(inputNames.has(node.name)){return} // inputs already recieved traces
 		const fn = inputs => primitives[node.op]
-				.desc_function(tensorTrace, node, inputs),
-			fnOut = fn(node.input.map(ref => valueTrace[ref]))
-		Object.assign(valueTrace, fnOut)
+			.desc_function(tensorTrace, node, inputs)
+		try {
+			const fnOut = fn(node.input.map(ref => valueTrace[ref]))
+			Object.assign(valueTrace, fnOut)
+		} catch(error){ throw {error, node: node.name}}
 	})
 	const outputs = flatModule.output.map(k => valueTrace[k])
 	if(!outputs.every(isTensor)){
