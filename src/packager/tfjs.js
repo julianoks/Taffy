@@ -291,7 +291,7 @@ export function unwrapped_to_constructor(unwrapped){
 			s => s.slice(0,s.lastIndexOf('['))),
 		forwardFn = get_forward(unwrapped, re_nodes, inDesc,name_map,subgraphs),
 		passObj = o => `JSON.parse(${stringify(stringify(o))})`
-	const fn = '(function(tfLib){"use_strict";' +
+	const fn_string = '(function(tfLib){"use_strict";' +
 
 		'try{this.tf = tfLib || tf;}' +
 		'catch(e){throw(' +
@@ -311,5 +311,5 @@ export function unwrapped_to_constructor(unwrapped){
 		`this.forward = ${forwardFn};` +
 		`this.optimize = ${optimize};` +
 		'})'
-	return eval(fn)
+	return fn_string
 }

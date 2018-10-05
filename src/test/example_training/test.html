@@ -5,9 +5,9 @@ import {lib_3} from '../sample_libs.js'
 import {tf} from '../deps/tf.js'
 
 const input_desc = {X: {shape: ['batch',784], dtype: 'float32'}}, 
-	fn_factory = pull_and_package('tfjs', lib_3(), 'probs', input_desc),
+	fn_factory = eval(pull_and_package('tfjs', lib_3(), 'probs', input_desc)),
 	fn = new fn_factory(tf),
-	sample_output = fn.forward({X:tf.tensor([Array(784).fill(1)])})
+	sample_output = fn.forward({X: tf.tensor([Array(784).fill(1)])})
 console.log('fn:', fn)
 console.log('sample_output:', sample_output)
 </script>

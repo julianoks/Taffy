@@ -10,11 +10,11 @@ export const stages = {
 	one: stage_one, 
 	two: stage_two,
 	three: stage_three
-};
+}
 
 export const packagers = {
 	tfjs: tfjs_constructor
-};
+}
 
 export function puller(library, module_name, input_descriptions, prune=true){
 	const one_out = stage_one(library, prune),

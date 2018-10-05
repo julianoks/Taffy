@@ -16,8 +16,8 @@ export function run(tf,
 	val_size=100){
 	const lossInpDesc = {'X': {'shape': ['batch',784], 'dtype': 'float32'},
 			'indices': {'shape': ['batch'], 'dtype': 'int32'}}, 
-		loss_fn_factory = pull_and_package('tfjs', lib_3(), 
-			'total_loss', lossInpDesc),
+		loss_fn_factory = eval(pull_and_package('tfjs', lib_3(), 
+			'total_loss', lossInpDesc)),
 		loss_fn = new loss_fn_factory(tf)
 	console.log('loss_fn:', loss_fn)
 
@@ -30,8 +30,9 @@ export function run(tf,
 				training_data, batch_size, iterations)
 			console.log('loss history:', loss_history)
 			let inheritor = new loss_fn_factory(tf),
-				probs_inherit = new (pull_and_package('tfjs', lib_3(), 'probs',
-					{X: lossInpDesc['X']}))(tf)
+				probsConstructor = eval(pull_and_package(
+					'tfjs', lib_3(), 'probs', {X: lossInpDesc['X']})),
+				probs_inherit = new probsConstructor(tf)
 			probs_inherit.inherit_vars(loss_fn, 'probs/', 'probs/')
 			console.log('example\'s indices:', example_data.indices.toString())
 			console.log('output of probs module (w/inherited values):',
