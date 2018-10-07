@@ -8,7 +8,10 @@ const {op_doc, tensor_description, tensor_shape} = constructors
 ---------- helper fns -----------
 ---------------------------------
 */
-const isTensor = obj => obj.constructor === tensor_description
+const isTensor = v => {
+	try {return v.constructor === constructors.tensor_description}
+	catch(e){return false}
+}
 
 const ensureAllTensors = tensors => tensors.forEach((t,i) => {
 	if(!isTensor(t)){
