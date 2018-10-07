@@ -49,14 +49,17 @@ tape('matmul operation', t => {
 
 function testMultiply1(){
 	const node = new constructors.node('mynode', 'multiply', [], []),
-		expected = {message: 'tensors not broadcastable', i: 2, dims: [6,7]}
+		i = 2,
+		dims = [6,7],
+		message = 'tensors are not broadcastable along ' +
+			`dimension ${i}, with values ${dims}`,
+		expected = {message, metaData: {dims, i},
+			metaDataIdentifier: 'not_broadcastable'}
 	try{
 		primitives.multiply.desc_function({}, node, test_tensors.slice(0,2))
 	}
 	catch(error){
-		if(JSON.stringify(error) == JSON.stringify(expected)){
-			return true
-		}
+		return JSON.stringify(error) == JSON.stringify(expected)
 	}
 	return false
 }

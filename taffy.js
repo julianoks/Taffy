@@ -253,6 +253,17 @@
 	*/
 	const isTensor$1 = obj => obj.constructor === tensor_description$1;
 
+	const ensureAllTensors = tensors => tensors.forEach((t,i) => {
+		if(!isTensor$1(t)){
+			let got = '';
+			try {
+				got = `type "${t.constructor.name}"`;
+			} catch(e){ got = '"unknown"'; }
+			const message = `argument ${i} is not a tensor, instead got ${got}`;
+			throw({message, i, arg: t})
+		}
+	});
+
 	// TODO: broadcast to most general dtype
 	function broadcastDTypes(tensors){
 		return tensors[0].dtype
@@ -267,11 +278,16 @@
 					symbols = [...new Set(dims.filter(isNaN))],
 					numbersNotOne = [...new Set(dims.filter(x=>!isNaN(x) && x!=1))];
 				if(numbersNotOne.length > 1){
-					throw({message: 'tensors not broadcastable', i: i, dims: dims})	
+					const message = 'tensors are not broadcastable along ' +
+						`dimension ${i}, with values ${dims}`;
+					throw({message, metaData: {dims, i},
+						metaDataIdentifier: 'not_broadcastable'})	
 				}
 				if(symbols.length > 1){
-					throw({message: 'cannot broadcast tensors with >1 collated ' +
-						'symbolic dimensions', i:i, dims: dims})
+					const message = 'symbolic dimensions are broadcastable, '+
+						`along dimension ${i}, with values ${dims}`;
+					throw({message, metaData: {dims, i},
+						metaDataIdentifier: 'not_broadcastable'})	
 				}
 				if(symbols.length == 1){
 					return numbersNotOne.length == 0? symbols[0] : numbersNotOne[0]
@@ -295,7 +311,7 @@
 		name: 'placeholder',
 		type: 'placeholder',
 		desc_function: function(){
-			throw('The placeholder desc_function shouldn\'t be called!')
+			throw({message: 'The placeholder desc_function shouldn\'t be called!'})
 		},
 		doc: new op_doc([],
 			['Any value supplied to the placeholder'],
@@ -310,9 +326,7 @@
 	*/
 	function __relu__desc_func(tensor_trace, node, tensors){
 		if(tensors.length<1) throw({message: 'must take >=1 tensors'})
-		tensors.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(tensors);
 		const results = tensors.reduce((acc, tensor, i) => {
 			const shape = new tensor_shape$1(tensor.shape),
 				dtype = tensor.dtype,
@@ -341,9 +355,7 @@
 	*/
 	function __sigmoid__desc_func(tensor_trace, node, tensors){
 		if(tensors.length<1) throw({message: 'must take >=1 tensors'})
-		tensors.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(tensors);
 		const results = tensors.reduce((acc, tensor, i) => {
 			const shape = new tensor_shape$1(tensor.shape),
 				dtype = tensor.dtype,
@@ -372,9 +384,7 @@
 	*/
 	function __tanh__desc_func(tensor_trace, node, tensors){
 		if(tensors.length<1) throw({message: 'must take >=1 tensors'})
-		tensors.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(tensors);
 		const results = tensors.reduce((acc, tensor, i) => {
 			const shape = new tensor_shape$1(tensor.shape),
 				dtype = tensor.dtype,
@@ -402,9 +412,7 @@
 	*/
 	function __exp__desc_func(tensor_trace, node, tensors){
 		if(tensors.length!==1) throw({message: 'must take 1 tensor'})
-		tensors.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(tensors);
 		const tensor = tensors[0],
 			shape = new tensor_shape$1(tensor.shape),
 			dtype = tensor.dtype,
@@ -431,9 +439,7 @@
 	*/
 	function __abs__desc_func(tensor_trace, node, tensors){
 		if(tensors.length!==1) throw({message: 'must take 1 tensor'})
-		tensors.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(tensors);
 		const tensor = tensors[0],
 			shape = new tensor_shape$1(tensor.shape),
 			dtype = tensor.dtype,
@@ -460,9 +466,7 @@
 	*/
 	function __negate__desc_func(tensor_trace, node, tensors){
 		if(tensors.length!==1) throw({message: 'must take 1 tensor'})
-		tensors.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(tensors);
 		const tensor = tensors[0],
 			shape = new tensor_shape$1(tensor.shape),
 			dtype = tensor.dtype,
@@ -489,9 +493,7 @@
 	*/
 	function __sqrt__desc_func(tensor_trace, node, tensors){
 		if(tensors.length!==1) throw({message: 'must take 1 tensor'})
-		tensors.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(tensors);
 		const tensor = tensors[0],
 			shape = new tensor_shape$1(tensor.shape),
 			dtype = tensor.dtype,
@@ -518,9 +520,7 @@
 	*/
 	function __matmul__desc_func(tensor_trace, node, tensors){
 		if(tensors.length!=2) throw({message: 'must take 2 tensors'})
-		tensors.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(tensors);
 		if(tensors[0].dtype !== tensors[1].dtype){
 			throw({message: 'tensors are of different dtypes'})
 		}
@@ -539,8 +539,10 @@
 				const d2 = tensors[1].shape[i];
 				if(!isNaN(d1) && !isNaN(d2)){
 					if(d1!=d2){
-						throw({message: 'tensors not broadcastable',
-							i: i, dims: [d1,d2]})
+						const message = 'tensors are not broadcastable '+
+							`along dimension ${i}, with values ${[d1, d2]}`;
+						throw({message, metaData: {dims: [d1,d2], i},
+							metaDataIdentifier: 'not_broadcastable'})	
 					}
 					return d1
 				}
@@ -575,9 +577,7 @@
 	*/
 	function __add__desc_func(tensor_trace, node, tensors){
 		if(tensors.length==0) throw({message: 'must take n>=1 tensors'})
-		tensors.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(tensors);
 		const {shape, dtype} = broadcastShapes(tensors),
 			out = new tensor_description$1(shape, dtype, node.name+':0', 'add',
 				tensors.map(t => t.val_ref), {}),
@@ -602,9 +602,7 @@
 	*/
 	function __subtract__desc_func(tensor_trace, node, tensors){
 		if(tensors.length!==2) throw({message: 'must take 2 tensors'})
-		tensors.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(tensors);
 		const {shape, dtype} = broadcastShapes(tensors),
 			out = new tensor_description$1(shape, dtype, node.name+':0', 'subtract',
 				tensors.map(t => t.val_ref), {}),
@@ -630,9 +628,7 @@
 	*/
 	function __multiply__desc_func(tensor_trace, node, tensors){
 		if(tensors.length==0) throw({message: 'must take n>=1 tensors'})
-		tensors.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(tensors);
 		const {shape, dtype} = broadcastShapes(tensors),
 			out = new tensor_description$1(shape, dtype, node.name+':0', 'multiply',
 				tensors.map(t => t.val_ref), {}),
@@ -658,9 +654,7 @@
 	*/
 	function __divide__desc_func(tensor_trace, node, tensors){
 		if(tensors.length!==2) throw({message: 'must take 2 tensors'})
-		tensors.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(tensors);
 		const {shape, dtype} = broadcastShapes(tensors),
 			out = new tensor_description$1(shape, dtype, node.name+':0', 'divide',
 				tensors.map(t => t.val_ref), {}),
@@ -686,9 +680,7 @@
 	*/
 	function __pow__desc_func(tensor_trace, node, tensors){
 		if(tensors.length!==2) throw({message: 'must take 2 tensors'})
-		tensors.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(tensors);
 		const {shape, dtype} = broadcastShapes(tensors),
 			out = new tensor_description$1(shape, dtype, node.name+':0', 'pow',
 				tensors.map(t => t.val_ref), {}),
@@ -748,8 +740,10 @@
 		let shape, fill;
 		try{shape = new tensor_shape$1(given_shape);}
 		catch(e){
-			throw({message: 'couldn\'t convert provided shape to tensor shape',
-				error: e})
+			const message = 'Provided shape is not a valid tensor shape. ' +
+				'A tensor shape must be a vector of integers or ' +
+				'strings that are valid C identifiers.';
+			throw({message})
 		}
 		const supported_fills = new Set(['ones', 'zeros',
 			'normal', 'truncated_normal']);
@@ -758,7 +752,10 @@
 		} else if(!isNaN(+given_fill)){
 			fill = {type: 'scalar', val: +given_fill};
 		}else{
-			throw({message: 'fill not supported', val: given_fill})
+			const message = `Fill not supported: "${given_fill}". ` +
+				'Must either be a number (as a string), or one of the following: '+
+				[...supported_fills].map(a=>`"${a}"`).join(', ');
+			throw({message})
 		}
 		const attr = {shape: shape, fill: fill, dtype: dtype},
 			out = new tensor_description$1(shape, dtype, node.name+':0', 'get_tensor',
@@ -852,7 +849,7 @@
 	function __parse_json__desc_func(tensor_trace, node, inputs){
 		return inputs.reduce((a,v,i) => {
 			try{return Object.assign(a, {[node.name+':'+i]: JSON.parse(v)})}
-			catch(e){throw({message:'Couldn\'t parse JSON literal', i:i,val:v})}
+			catch(e){throw({message:`Couldn't parse JSON literal #${i}, "${v}"`})}
 		}, {})
 	}
 
@@ -961,9 +958,7 @@
 	*/
 	function __softmax__desc_func(tensor_trace, node, inputs){
 		if(inputs.length!==1) throw({message: 'must take 1 tensor'})
-		inputs.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(inputs);
 		const tensor = inputs[0],
 			shape = new tensor_shape$1(tensor.shape),
 			dtype = tensor.dtype,
@@ -991,9 +986,7 @@
 	*/
 	function __log__desc_func(tensor_trace, node, inputs){
 		if(inputs.length!==1) throw({message: 'must take 1 tensor'})
-		inputs.forEach((t,i) => {
-			if(!isTensor$1(t)) throw({message: 'argument not a tensor', i:i, arg: t})
-		});
+		ensureAllTensors(inputs);
 		const tensor = inputs[0],
 			shape = new tensor_shape$1(tensor.shape),
 			dtype = tensor.dtype,
@@ -1093,7 +1086,7 @@
 	---------------------------------
 	*/
 	function __transpose__desc_func(tensor_trace, node, inputs){
-		if(inputs.length == 1 || inputs.length == 2){
+		if(!(inputs.length == 1 || inputs.length == 2)){
 			throw({message: 'must take one or two inputs'})
 		}
 		if(!isTensor$1(inputs[0])) throw({message: 'first input must be a tensor'})
@@ -1430,14 +1423,18 @@
 		flatModule.nodes.forEach(node => {
 			if(inputNames.has(node.name)){return} // inputs already recieved traces
 			const fn = inputs => primitives[node.op]
-					.desc_function(tensorTrace, node, inputs),
-				fnOut = fn(node.input.map(ref => valueTrace[ref]));
-			Object.assign(valueTrace, fnOut);
+				.desc_function(tensorTrace, node, inputs);
+			try {
+				const fnOut = fn(node.input.map(ref => valueTrace[ref]));
+				Object.assign(valueTrace, fnOut);
+			} catch(error){ throw {error, node: node.name}}
 		});
 		const outputs = flatModule.output.map(k => valueTrace[k]);
-		if(!outputs.every(isTensor$2)){
-			throw('Output of module in stage one is not a tensor')
-		}
+		outputs.forEach((t, i) => {if(!isTensor$2(t)){
+			const message = `Output #${i} of module is not a tensor`,
+				metaData = {i, arg:t};
+			throw({message,  metaData, metaDataIdentifier: 'output_not_tensor'})
+		}});
 		return {val_trace: valueTrace,
 			tensor_trace: tensorTrace,
 			output: outputs.map(t=>t.val_ref),
@@ -1765,7 +1762,7 @@
 				s => s.slice(0,s.lastIndexOf('['))),
 			forwardFn = get_forward(unwrapped, re_nodes, inDesc,name_map,subgraphs),
 			passObj = o => `JSON.parse(${stringify(stringify(o))})`;
-		const fn = '(function(tfLib){"use_strict";' +
+		const fn_string = '(function(tfLib){"use_strict";' +
 
 			'try{this.tf = tfLib || tf;}' +
 			'catch(e){throw(' +
@@ -1785,7 +1782,7 @@
 			`this.forward = ${forwardFn};` +
 			`this.optimize = ${optimize};` +
 			'})';
-		return eval(fn)
+		return fn_string
 	}
 
 	const stages = {
