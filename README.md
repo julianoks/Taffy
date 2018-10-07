@@ -7,4 +7,4 @@ TODO
 	- [ ] map
 	- [ ] fold/reduce
 		- RNNs should be implemented as a fold/reduce that returns x, f(x), f(f(x)), ....
-- [ ] standardize what description functions throw
+- [x] standardize what description functions throw

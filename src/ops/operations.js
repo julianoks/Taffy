@@ -12,10 +12,10 @@ const isTensor = obj => obj.constructor === tensor_description
 
 const ensureAllTensors = tensors => tensors.forEach((t,i) => {
 	if(!isTensor(t)){
-		let got = '"unknown"'
+		let got = ''
 		try {
 			got = `type "${t.constructor.name}"`
-		} catch(e){}
+		} catch(e){ got = '"unknown"' }
 		const message = `argument ${i} is not a tensor, instead got ${got}`
 		throw({message, i, arg: t})
 	}
@@ -35,12 +35,16 @@ export function broadcastShapes(tensors){
 				symbols = [...new Set(dims.filter(isNaN))],
 				numbersNotOne = [...new Set(dims.filter(x=>!isNaN(x) && x!=1))]
 			if(numbersNotOne.length > 1){
-				const message = `tensors are not broadcastable along dimension ${i}, with values ${dims}`
-				throw({message, metaDataIdentifier: 'not_broadcastable', metaData: {dims, i}})	
+				const message = 'tensors are not broadcastable along ' +
+					`dimension ${i}, with values ${dims}`
+				throw({message, metaData: {dims, i},
+					metaDataIdentifier: 'not_broadcastable'})	
 			}
 			if(symbols.length > 1){
-				const message = `symbolic dimensions are broadcastable, along dimension ${i}, with values ${dims}`
-				throw({message, metaDataIdentifier: 'not_broadcastable', metaData: {dims, i}})	
+				const message = 'symbolic dimensions are broadcastable, '+
+					`along dimension ${i}, with values ${dims}`
+				throw({message, metaData: {dims, i},
+					metaDataIdentifier: 'not_broadcastable'})	
 			}
 			if(symbols.length == 1){
 				return numbersNotOne.length == 0? symbols[0] : numbersNotOne[0]
@@ -292,8 +296,10 @@ function __matmul__desc_func(tensor_trace, node, tensors){
 			const d2 = tensors[1].shape[i]
 			if(!isNaN(d1) && !isNaN(d2)){
 				if(d1!=d2){
-					const message = `tensors are not broadcastable along dimension ${i}, with values ${[d1, d2]}`
-					throw({message, metaDataIdentifier: 'not_broadcastable', metaData: {dims: [d1,d2], i}})	
+					const message = 'tensors are not broadcastable '+
+						`along dimension ${i}, with values ${[d1, d2]}`
+					throw({message, metaData: {dims: [d1,d2], i},
+						metaDataIdentifier: 'not_broadcastable'})	
 				}
 				return d1
 			}
@@ -492,7 +498,8 @@ function __get_tensor__desc_func(tensor_trace, node, inputs){
 	try{shape = new tensor_shape(given_shape)}
 	catch(e){
 		const message = 'Provided shape is not a valid tensor shape. ' +
-			'A tensor shape must be a vector of integers or strings that are valid C identifiers.'
+			'A tensor shape must be a vector of integers or ' +
+			'strings that are valid C identifiers.'
 		throw({message})
 	}
 	const supported_fills = new Set(['ones', 'zeros',
@@ -503,8 +510,8 @@ function __get_tensor__desc_func(tensor_trace, node, inputs){
 		fill = {type: 'scalar', val: +given_fill}
 	}else{
 		const message = `Fill not supported: "${given_fill}". ` +
-			`Must either be a number (as a string), or one of the following: `+
-			[...supported_fills].map(a=>'"'+a+'"').join(', ')
+			'Must either be a number (as a string), or one of the following: '+
+			[...supported_fills].map(a=>`"${a}"`).join(', ')
 		throw({message})
 	}
 	const attr = {shape: shape, fill: fill, dtype: dtype},
@@ -708,7 +715,7 @@ const __unpack_list__primitive = {
 */
 function __softmax__desc_func(tensor_trace, node, inputs){
 	if(inputs.length!==1) throw({message: 'must take 1 tensor'})
-	ensureAllTensors(tensors)
+	ensureAllTensors(inputs)
 	const tensor = inputs[0],
 		shape = new tensor_shape(tensor.shape),
 		dtype = tensor.dtype,
@@ -736,7 +743,7 @@ const __softmax__primitive = {
 */
 function __log__desc_func(tensor_trace, node, inputs){
 	if(inputs.length!==1) throw({message: 'must take 1 tensor'})
-	ensureAllTensors(tensors)
+	ensureAllTensors(inputs)
 	const tensor = inputs[0],
 		shape = new tensor_shape(tensor.shape),
 		dtype = tensor.dtype,

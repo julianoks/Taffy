@@ -44,9 +44,11 @@ export function stage_two(stageOneOut, moduleName, inputDescriptions){
 		} catch(error){ throw {error, node: node.name}}
 	})
 	const outputs = flatModule.output.map(k => valueTrace[k])
-	if(!outputs.every(isTensor)){
-		throw('Output of module in stage one is not a tensor')
-	}
+	outputs.forEach((t, i) => {if(!isTensor(t)){
+		const message = `Output #${i} of module is not a tensor`,
+			metaData = {i, arg:t}
+		throw({message,  metaData, metaDataIdentifier: 'output_not_tensor'})
+	}})
 	return {val_trace: valueTrace,
 		tensor_trace: tensorTrace,
 		output: outputs.map(t=>t.val_ref),
