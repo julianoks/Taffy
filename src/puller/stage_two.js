@@ -1,8 +1,15 @@
 import {constructors} from '../util/taffy_constructors.js'
 import {primitives} from '../ops/operations.js'
 
-const isShape = v => v.constructor === constructors.tensor_shape
-const isTensor = v => v.constructor === constructors.tensor_description
+const isShape = v => {
+	try {return v.constructor === constructors.tensor_shape}
+	catch(e){return false}
+}
+
+const isTensor = v => {
+	try {return v.constructor === constructors.tensor_description}
+	catch(e){return false}
+}
 
 function quasiToTensor(inputDesc){
 	return Object.entries(inputDesc).reduce((a,[k,quasi]) => {
