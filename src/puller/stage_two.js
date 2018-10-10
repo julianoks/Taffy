@@ -48,12 +48,12 @@ export function stage_two(stageOneOut, moduleName, inputDescriptions){
 		try {
 			const fnOut = fn(node.input.map(ref => valueTrace[ref]))
 			Object.assign(valueTrace, fnOut)
-		} catch(error){ throw {error, node: node.name}}
+		} catch(error){ throw {error, node: node.name, valueTrace}}
 	})
 	const outputs = flatModule.output.map(k => valueTrace[k])
 	outputs.forEach((t, i) => {if(!isTensor(t)){
 		const message = `Output #${i} of module is not a tensor`,
-			metaData = {i, arg:t}
+			metaData = {i, arg:t, valueTrace}
 		throw({message,  metaData, metaDataIdentifier: 'output_not_tensor'})
 	}})
 	return {val_trace: valueTrace,

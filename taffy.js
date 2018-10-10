@@ -251,7 +251,10 @@
 	---------- helper fns -----------
 	---------------------------------
 	*/
-	const isTensor$1 = obj => obj.constructor === tensor_description$1;
+	const isTensor$1 = v => {
+		try {return v.constructor === constructors.tensor_description}
+		catch(e){return false}
+	};
 
 	const ensureAllTensors = tensors => tensors.forEach((t,i) => {
 		if(!isTensor$1(t)){
@@ -1387,8 +1390,15 @@
 		return {modules: flattened}
 	}
 
-	const isShape = v => v.constructor === constructors.tensor_shape;
-	const isTensor$2 = v => v.constructor === constructors.tensor_description;
+	const isShape = v => {
+		try {return v.constructor === constructors.tensor_shape}
+		catch(e){return false}
+	};
+
+	const isTensor$2 = v => {
+		try {return v.constructor === constructors.tensor_description}
+		catch(e){return false}
+	};
 
 	function quasiToTensor(inputDesc){
 		return Object.entries(inputDesc).reduce((a,[k,quasi]) => {
@@ -1427,12 +1437,12 @@
 			try {
 				const fnOut = fn(node.input.map(ref => valueTrace[ref]));
 				Object.assign(valueTrace, fnOut);
-			} catch(error){ throw {error, node: node.name}}
+			} catch(error){ throw {error, node: node.name, valueTrace}}
 		});
 		const outputs = flatModule.output.map(k => valueTrace[k]);
 		outputs.forEach((t, i) => {if(!isTensor$2(t)){
 			const message = `Output #${i} of module is not a tensor`,
-				metaData = {i, arg:t};
+				metaData = {i, arg:t, valueTrace};
 			throw({message,  metaData, metaDataIdentifier: 'output_not_tensor'})
 		}});
 		return {val_trace: valueTrace,
