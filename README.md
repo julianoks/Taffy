@@ -8,3 +8,7 @@ TODO
 	- [ ] fold/reduce
 		- RNNs should be implemented as a fold/reduce that returns x, f(x), f(f(x)), ....
 - [x] standardize what description functions throw
+- [x] essential operations
+	- [x] gather
+	- [x] reshape
+	- [x] javascript fn

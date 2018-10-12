@@ -1188,6 +1188,133 @@
 
 	/*
 	---------------------------------
+	------------ gather  ------------
+	---------------------------------
+	*/
+	function __gather__desc_func(tensor_trace, node, inputs){
+		if(!(inputs.length === 2 || inputs.length === 3)){
+			throw({message: 'must take two or three inputs'})
+		}
+		const [tensor, indices] = inputs;
+		const axis = inputs[2]? inputs[2] : 0;
+		ensureAllTensors(inputs.slice(0,2));
+		// checking tensor
+		if(tensor.shape.length == 0){
+			throw({message: 'first input must not be a scalar'})
+		}
+		// checking indices
+		if(indices.dtype !== 'int32'){
+			throw({message: 'second input must have dtype "int32", instead got "'+
+				indices.dtype+'"'})
+		}
+		if(indices.shape.length !== 1){
+			throw({message: 'second input must be one dimensional'})
+		}
+		// checking axis
+		if(!(Number.isInteger(axis) && axis>=0 && axis<tensor.shape.length)){
+			throw({message: 'third input must be an integer between 0-'+
+				tensor.shape.length-1})
+		}
+		let shape = tensor.shape.slice();
+		shape[axis] = indices.shape[0];
+		shape = new tensor_shape$1(shape);
+		const out = new tensor_description$1(shape, tensor.dtype, node.name+':0',
+			'gather', [tensor.val_ref, indices.val_ref], {axis});
+		const results = {[out.val_ref]: out};
+		Object.assign(tensor_trace, results);
+		return results
+	}
+
+	const __gather__primitive = {
+		name: 'gather',
+		type: 'tensor',
+		desc_function: __gather__desc_func,
+		doc: new op_doc(['x', 'indices (1d tensor with dtype "int32")',
+			'(optional) axis'],
+		['tensor of slices from `x`'],
+		'takes slices from `x` along `axis` at the specified `indices`')
+	};
+
+
+
+	/*
+	---------------------------------
+	----------- reshape  ------------
+	---------------------------------
+	*/
+	function __reshape__desc_func(tensor_trace, node, inputs){
+		if(inputs.length != 2) throw({message: 'must take two inputs'})
+		const [tensor, newShape] = inputs;
+		if(!isTensor$1(tensor)) throw({message: 'first input must be a tensor'})
+		// checking shape
+		if(!(Array.isArray(newShape) &&
+			newShape.every(x => Number.isInteger(x) && x>=0))){
+			throw({message: 'second input must be an array of '+
+				'nonnegative integers'})
+		}
+		const oldSize = tensor.shape.reduce((a,b) => a*b, 1);
+		const proposedSize = newShape.reduce((a,b) => a*b, 1);
+		if(oldSize !== proposedSize){
+			throw({message: `Size of new shape, ${proposedSize},`+
+				` must match original size, ${oldSize}.`})
+		}
+		const out = new tensor_description$1(newShape, tensor.dtype, node.name+':0',
+			'reshape', [tensor.val_ref], {newShape});
+		const results = {[out.val_ref]: out};
+		Object.assign(tensor_trace, results);
+		return results
+	}
+
+	const __reshape__primitive = {
+		name: 'reshape',
+		type: 'tensor',
+		desc_function: __reshape__desc_func,
+		doc: new op_doc(['x', 'shape (array of nonnegative integers)'],
+			['`x` reshaped to given `shape`'],
+			'reshapes `x` into given shape `shape`')
+	};
+
+
+	/*
+	---------------------------------
+	---------- js_function  ----------
+	---------------------------------
+	*/
+	function __js_function__desc_func(tensor_trace, node, inputs){
+		const [fnString, ...args] = inputs;
+		let fn = undefined;
+		let result = undefined;
+		try {
+			fn = eval(fnString);
+		} catch(e){
+			throw({message: 'Could not evaluate function string, '+
+				`got error: ${e.toString()}`})
+		}
+		if(typeof(fn) !== 'function'){
+			throw({message: 'Function string did not evaluate to a function, '+
+				`instead got type "${typeof(fn)}"`})
+		}
+		try {
+			result = fn(...args);
+		} catch(e){
+			throw({message: `Error in applying function: ${e.toString()}`})
+		}
+		const resultsArray = Array.isArray(result)? result : [result];
+		return resultsArray.reduce((acc, res, i) =>
+			Object.assign(acc, {[node.name+':'+i]: res}), {})
+	}
+
+	const __js_function__primitive = {
+		name: 'js_function',
+		type: 'control',
+		desc_function: __js_function__desc_func, 
+		doc: new op_doc(['javascript function (a string)', '...arguments'],
+			['the outputs of the function applied to the arguments'],
+			'applies the function to the arguments, and returns the results')
+	};
+
+	/*
+	---------------------------------
 	--------- convolution  ----------
 	---------------------------------
 	*/
@@ -1233,6 +1360,9 @@
 		__subtract__primitive,
 		__abs__primitive,
 		__convolution__primitive,
+		__gather__primitive,
+		__reshape__primitive,
+		__js_function__primitive,
 	].reduce((a,p)=>Object.assign(a, {[p.name]: p}), {});
 
 	/*
@@ -1331,7 +1461,7 @@
 			forward: 	new Set([...forward_ancestor, ...init_nodes])}
 	}
 
-	function pruneAndTopsortNodes(nodes, outputNames, prune){
+	function pruneTopsortNodes(nodes, outputNames, prune){
 		const stripIndices = arr => arr.map(s => s.slice(0,s.lastIndexOf(':'))),
 			nodeDict = nodes.reduce((a,n) => Object.assign(a,{[n.name]: n}), {}),
 			nodeDeps = nodes.reduce((a,n) => 
@@ -1364,6 +1494,18 @@
 			op: 'identity', literal: []}])
 	}
 
+
+	/**
+	 * Flattens each module in a node such that each module 
+	 * only contains primitive operations.
+	 * Additionally, it puts each module's nodes in topologically 
+	 * sorted order, and nodes that do not contribute to the output 
+	 * are optionally pruned.
+	 * @param {`taffy library`} library A taffy library
+	 * @param {boolean=} prune Whether to prune nodes that 
+	 * don't contribute to a module's output
+	 * @return {Object<string, Object<string, any>>} Flattened modules
+	 */
 	function stage_one(library, prune=true){
 		// build dependency graph of modules and find topological ordering
 		const origModules = library.modules.reduce(
@@ -1374,13 +1516,13 @@
 		if(moduleOrder === false){throw('Module dependencies contain a cycle')}
 		// flatten modules
 		const flattened = moduleOrder.reduce((a, modName)=> {
-			const modDeps = new Set(deps[modName].in),
-				origMod = origModules[modName],
-				nodes = pruneAndTopsortNodes(origMod.nodes, origMod.output, prune)
-					.map(node => modDeps.has(node.op)?
-						nodeToModule(node, a[node.op]) :
-						[node])
-					.reduce((x,z) => x.concat(z), []);
+			const modDeps = new Set(deps[modName].in);
+			const origMod = origModules[modName];
+			const nodes = pruneTopsortNodes(origMod.nodes, origMod.output, prune)
+				.map(node => modDeps.has(node.op)?
+					nodeToModule(node, a[node.op]) :
+					[node])
+				.reduce((x,z) => x.concat(z), []);
 			return Object.assign(a, {[modName]: {
 				name: 	modName,
 				input: 	origMod.input,
@@ -1420,6 +1562,19 @@
 	// the names of inputs as keys and value descriptions as values
 	// all value descriptions must be quasi-tensor descriptions,
 	// which are objects with shape and dtype
+
+	/**
+	 * Evaluates a specified module using description of its input, 
+	 * producing a tensor and value trace.
+	 * @param {Object<string, Object<string, any>>} stageOneOut The output 
+	 * of `stage_on`, which are flattened modules
+	 * @param {string} moduleName The name of the module to be compiled
+	 * @param {Object<string, Object<string, any>>} inputDescriptions A 
+	 * dictionary with `moduleName`'s input names as keys, 
+	 * and dictionary with {shape, dtype} as values
+	 * @return {Object<string, any>} A dictionary containing a tensor 
+	 * and value trace, and other metadata.
+	 */
 	function stage_two(stageOneOut, moduleName, inputDescriptions){
 		let valueTrace = {},
 			tensorTrace = {};
@@ -1455,6 +1610,15 @@
 
 	const stripIndex = s => s.slice(0,s.lastIndexOf(':'));
 
+	/**
+	 * Transforms the graph to only contain tensor and placeholder operations
+	 * @param {Object<string, any>} stageTwoOut The output of `stage_two`
+	 * @param {boolean} prune Whether to prune nodes that don't 
+	 * contribute to a module's output
+	 * @return {Object<string, any>} A dictionary containing 
+	 * nodes that implement tensor or placeholder operations, 
+	 * and other metadata
+	 */
 	function stage_three(stageTwoOut, prune=true){
 		const {tensor_trace, output, output_names} = stageTwoOut,
 			depGraph = Object.entries(tensor_trace)
@@ -1633,6 +1797,8 @@
 		cast: n => `[tf.cast(${n.input[0]}, ${stringify(n.attr.dtype)})]`,
 		abs: node => `[tf.abs(${node.input[0]})]`,
 		convolution: convolutionWrapper,
+		gather: n => `[tf.gather(${n.input.slice(0,2)},${n.attr.axis})]`,
+		reshape: n => `[tf.reshape(${n.input[0]},${stringify(n.attr.newShape)})]`,
 	};
 
 

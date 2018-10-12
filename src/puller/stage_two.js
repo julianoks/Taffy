@@ -31,6 +31,19 @@ function quasiToTensor(inputDesc){
 // the names of inputs as keys and value descriptions as values
 // all value descriptions must be quasi-tensor descriptions,
 // which are objects with shape and dtype
+
+/**
+ * Evaluates a specified module using description of its input, 
+ * producing a tensor and value trace.
+ * @param {Object<string, Object<string, any>>} stageOneOut The output 
+ * of `stage_on`, which are flattened modules
+ * @param {string} moduleName The name of the module to be compiled
+ * @param {Object<string, Object<string, any>>} inputDescriptions A 
+ * dictionary with `moduleName`'s input names as keys, 
+ * and dictionary with {shape, dtype} as values
+ * @return {Object<string, any>} A dictionary containing a tensor 
+ * and value trace, and other metadata.
+ */
 export function stage_two(stageOneOut, moduleName, inputDescriptions){
 	let valueTrace = {},
 		tensorTrace = {}

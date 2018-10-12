@@ -945,6 +945,133 @@ const __cast__primitive = {
 
 /*
 ---------------------------------
+------------ gather  ------------
+---------------------------------
+*/
+function __gather__desc_func(tensor_trace, node, inputs){
+	if(!(inputs.length === 2 || inputs.length === 3)){
+		throw({message: 'must take two or three inputs'})
+	}
+	const [tensor, indices] = inputs
+	const axis = inputs[2]? inputs[2] : 0
+	ensureAllTensors(inputs.slice(0,2))
+	// checking tensor
+	if(tensor.shape.length == 0){
+		throw({message: 'first input must not be a scalar'})
+	}
+	// checking indices
+	if(indices.dtype !== 'int32'){
+		throw({message: 'second input must have dtype "int32", instead got "'+
+			indices.dtype+'"'})
+	}
+	if(indices.shape.length !== 1){
+		throw({message: 'second input must be one dimensional'})
+	}
+	// checking axis
+	if(!(Number.isInteger(axis) && axis>=0 && axis<tensor.shape.length)){
+		throw({message: 'third input must be an integer between 0-'+
+			tensor.shape.length-1})
+	}
+	let shape = tensor.shape.slice()
+	shape[axis] = indices.shape[0]
+	shape = new tensor_shape(shape)
+	const out = new tensor_description(shape, tensor.dtype, node.name+':0',
+		'gather', [tensor.val_ref, indices.val_ref], {axis})
+	const results = {[out.val_ref]: out}
+	Object.assign(tensor_trace, results)
+	return results
+}
+
+const __gather__primitive = {
+	name: 'gather',
+	type: 'tensor',
+	desc_function: __gather__desc_func,
+	doc: new op_doc(['x', 'indices (1d tensor with dtype "int32")',
+		'(optional) axis'],
+	['tensor of slices from `x`'],
+	'takes slices from `x` along `axis` at the specified `indices`')
+}
+
+
+
+/*
+---------------------------------
+----------- reshape  ------------
+---------------------------------
+*/
+function __reshape__desc_func(tensor_trace, node, inputs){
+	if(inputs.length != 2) throw({message: 'must take two inputs'})
+	const [tensor, newShape] = inputs
+	if(!isTensor(tensor)) throw({message: 'first input must be a tensor'})
+	// checking shape
+	if(!(Array.isArray(newShape) &&
+		newShape.every(x => Number.isInteger(x) && x>=0))){
+		throw({message: 'second input must be an array of '+
+			'nonnegative integers'})
+	}
+	const oldSize = tensor.shape.reduce((a,b) => a*b, 1)
+	const proposedSize = newShape.reduce((a,b) => a*b, 1)
+	if(oldSize !== proposedSize){
+		throw({message: `Size of new shape, ${proposedSize},`+
+			` must match original size, ${oldSize}.`})
+	}
+	const out = new tensor_description(newShape, tensor.dtype, node.name+':0',
+		'reshape', [tensor.val_ref], {newShape})
+	const results = {[out.val_ref]: out}
+	Object.assign(tensor_trace, results)
+	return results
+}
+
+const __reshape__primitive = {
+	name: 'reshape',
+	type: 'tensor',
+	desc_function: __reshape__desc_func,
+	doc: new op_doc(['x', 'shape (array of nonnegative integers)'],
+		['`x` reshaped to given `shape`'],
+		'reshapes `x` into given shape `shape`')
+}
+
+
+/*
+---------------------------------
+---------- js_function  ----------
+---------------------------------
+*/
+function __js_function__desc_func(tensor_trace, node, inputs){
+	const [fnString, ...args] = inputs
+	let fn = undefined
+	let result = undefined
+	try {
+		fn = eval(fnString)
+	} catch(e){
+		throw({message: 'Could not evaluate function string, '+
+			`got error: ${e.toString()}`})
+	}
+	if(typeof(fn) !== 'function'){
+		throw({message: 'Function string did not evaluate to a function, '+
+			`instead got type "${typeof(fn)}"`})
+	}
+	try {
+		result = fn(...args)
+	} catch(e){
+		throw({message: `Error in applying function: ${e.toString()}`})
+	}
+	const resultsArray = Array.isArray(result)? result : [result]
+	return resultsArray.reduce((acc, res, i) =>
+		Object.assign(acc, {[node.name+':'+i]: res}), {})
+}
+
+const __js_function__primitive = {
+	name: 'js_function',
+	type: 'control',
+	desc_function: __js_function__desc_func, 
+	doc: new op_doc(['javascript function (a string)', '...arguments'],
+		['the outputs of the function applied to the arguments'],
+		'applies the function to the arguments, and returns the results')
+}
+
+/*
+---------------------------------
 --------- convolution  ----------
 ---------------------------------
 */
@@ -990,5 +1117,8 @@ export const primitives = [
 	__subtract__primitive,
 	__abs__primitive,
 	__convolution__primitive,
+	__gather__primitive,
+	__reshape__primitive,
+	__js_function__primitive,
 ].reduce((a,p)=>Object.assign(a, {[p.name]: p}), {})
 

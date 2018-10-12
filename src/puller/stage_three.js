@@ -2,6 +2,15 @@ import {topological_sort, prune_and_topsort} from '../util/graph.js'
 
 const stripIndex = s => s.slice(0,s.lastIndexOf(':'))
 
+/**
+ * Transforms the graph to only contain tensor and placeholder operations
+ * @param {Object<string, any>} stageTwoOut The output of `stage_two`
+ * @param {boolean} prune Whether to prune nodes that don't 
+ * contribute to a module's output
+ * @return {Object<string, any>} A dictionary containing 
+ * nodes that implement tensor or placeholder operations, 
+ * and other metadata
+ */
 export function stage_three(stageTwoOut, prune=true){
 	const {tensor_trace, output, output_names} = stageTwoOut,
 		depGraph = Object.entries(tensor_trace)

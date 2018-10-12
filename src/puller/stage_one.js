@@ -1,6 +1,6 @@
 import {topological_sort, prune_and_topsort} from '../util/graph.js'
 
-function pruneAndTopsortNodes(nodes, outputNames, prune){
+function pruneTopsortNodes(nodes, outputNames, prune){
 	const stripIndices = arr => arr.map(s => s.slice(0,s.lastIndexOf(':'))),
 		nodeDict = nodes.reduce((a,n) => Object.assign(a,{[n.name]: n}), {}),
 		nodeDeps = nodes.reduce((a,n) => 
@@ -33,6 +33,18 @@ function nodeToModule(parentNode, module){
 		op: 'identity', literal: []}])
 }
 
+
+/**
+ * Flattens each module in a node such that each module 
+ * only contains primitive operations.
+ * Additionally, it puts each module's nodes in topologically 
+ * sorted order, and nodes that do not contribute to the output 
+ * are optionally pruned.
+ * @param {`taffy library`} library A taffy library
+ * @param {boolean=} prune Whether to prune nodes that 
+ * don't contribute to a module's output
+ * @return {Object<string, Object<string, any>>} Flattened modules
+ */
 export function stage_one(library, prune=true){
 	// build dependency graph of modules and find topological ordering
 	const origModules = library.modules.reduce(
@@ -43,13 +55,13 @@ export function stage_one(library, prune=true){
 	if(moduleOrder === false){throw('Module dependencies contain a cycle')}
 	// flatten modules
 	const flattened = moduleOrder.reduce((a, modName)=> {
-		const modDeps = new Set(deps[modName].in),
-			origMod = origModules[modName],
-			nodes = pruneAndTopsortNodes(origMod.nodes, origMod.output, prune)
-				.map(node => modDeps.has(node.op)?
-					nodeToModule(node, a[node.op]) :
-					[node])
-				.reduce((x,z) => x.concat(z), [])
+		const modDeps = new Set(deps[modName].in)
+		const origMod = origModules[modName]
+		const nodes = pruneTopsortNodes(origMod.nodes, origMod.output, prune)
+			.map(node => modDeps.has(node.op)?
+				nodeToModule(node, a[node.op]) :
+				[node])
+			.reduce((x,z) => x.concat(z), [])
 		return Object.assign(a, {[modName]: {
 			name: 	modName,
 			input: 	origMod.input,

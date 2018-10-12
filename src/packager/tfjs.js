@@ -152,6 +152,8 @@ export const opConversionMap = {
 	cast: n => `[tf.cast(${n.input[0]}, ${stringify(n.attr.dtype)})]`,
 	abs: node => `[tf.abs(${node.input[0]})]`,
 	convolution: convolutionWrapper,
+	gather: n => `[tf.gather(${n.input.slice(0,2)},${n.attr.axis})]`,
+	reshape: n => `[tf.reshape(${n.input[0]},${stringify(n.attr.newShape)})]`,
 }
 
 
