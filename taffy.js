@@ -736,17 +736,21 @@
 	*/
 
 	function __get_tensor__desc_func(tensor_trace, node, inputs){
-		const [given_shape, given_fill, given_dtype] = inputs,
-			dtype = given_dtype || 'float32';
+		const [given_shape, given_fill, given_dtype] = inputs;
+		let dtype = given_dtype || 'float32';
+		if(isTensor$1(dtype)) { dtype = dtype.dtype; }
 		if(given_shape == undefined) throw({message: 'shape must be defined'})
 		if(given_fill == undefined) throw({message: 'fill must be defined'})
 		let shape, fill;
-		try{shape = new tensor_shape$1(given_shape);}
-		catch(e){
-			const message = 'Provided shape is not a valid tensor shape. ' +
-				'A tensor shape must be a vector of integers or ' +
-				'strings that are valid C identifiers.';
-			throw({message})
+		if(isTensor$1(shape)){ shape = shape.shape; }
+		else {
+			try{shape = new tensor_shape$1(given_shape);}
+			catch(e){
+				const message = 'Provided shape is not a valid tensor shape. ' +
+					'A tensor shape must be a vector of integers or ' +
+					'strings that are valid C identifiers.';
+				throw({message})
+			}
 		}
 		const supported_fills = new Set(['ones', 'zeros',
 			'normal', 'truncated_normal']);
@@ -772,8 +776,11 @@
 		name: 'get_tensor',
 		type: 'tensor',
 		desc_function: __get_tensor__desc_func,
-		doc: new op_doc(['shape', 'fill', '(optional) dtype'],
-			['tensor'], 'produces a tensor')
+		doc: new op_doc(['shape, a vector or tensor whose shape will be inherited',
+			'fill, one of (number, "ones", "zeros", "normal", "truncated_normal")',
+			'(optional) dtype, either undefined, a string, ' +
+				'or a tensor whose dtype will be inherited'],
+		['tensor'], 'produces a tensor')
 	};
 
 	/*
