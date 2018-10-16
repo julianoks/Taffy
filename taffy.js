@@ -742,7 +742,7 @@
 		if(given_shape == undefined) throw({message: 'shape must be defined'})
 		if(given_fill == undefined) throw({message: 'fill must be defined'})
 		let shape, fill;
-		if(isTensor$1(given_shape)){ shape = shape.shape; }
+		if(isTensor$1(given_shape)){ shape = given_shape.shape; }
 		else {
 			try{shape = new tensor_shape$1(given_shape);}
 			catch(e){

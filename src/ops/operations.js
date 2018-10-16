@@ -499,7 +499,7 @@ function __get_tensor__desc_func(tensor_trace, node, inputs){
 	if(given_shape == undefined) throw({message: 'shape must be defined'})
 	if(given_fill == undefined) throw({message: 'fill must be defined'})
 	let shape, fill
-	if(isTensor(given_shape)){ shape = shape.shape }
+	if(isTensor(given_shape)){ shape = given_shape.shape }
 	else {
 		try{shape = new tensor_shape(given_shape)}
 		catch(e){
