@@ -498,16 +498,15 @@ function __get_tensor__desc_func(tensor_trace, node, inputs){
 	if(isTensor(dtype)) { dtype = dtype.dtype }
 	if(given_shape == undefined) throw({message: 'shape must be defined'})
 	if(given_fill == undefined) throw({message: 'fill must be defined'})
-	let shape, fill
+	let shape = given_shape
+	let fill = given_fill
 	if(isTensor(given_shape)){ shape = given_shape.shape }
-	else {
-		try{shape = new tensor_shape(given_shape)}
-		catch(e){
-			const message = 'Provided shape is not a valid tensor shape. ' +
-				'A tensor shape must be a vector of integers or ' +
-				'strings that are valid C identifiers.'
-			throw({message})
-		}
+	try{shape = new tensor_shape(shape)}
+	catch(e){
+		const message = 'Provided shape is not a valid tensor shape. ' +
+			'A tensor shape must be a vector of integers or ' +
+			'strings that are valid C identifiers.'
+		throw({message})
 	}
 	const supported_fills = new Set(['ones', 'zeros',
 		'normal', 'truncated_normal'])
@@ -515,7 +514,7 @@ function __get_tensor__desc_func(tensor_trace, node, inputs){
 		fill = {type: 'symbol', symbol: given_fill}
 	} else if(!isNaN(+given_fill)){
 		fill = {type: 'scalar', val: +given_fill}
-	}else{
+	} else{
 		const message = `Fill not supported: "${given_fill}". ` +
 			'Must either be a number (as a string), or one of the following: '+
 			[...supported_fills].map(a=>`"${a}"`).join(', ')
