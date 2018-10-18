@@ -735,15 +735,14 @@
 	---------------------------------
 	*/
 
-	function __get_tensor__desc_func(tensor_trace, node, inputs){
-		const [given_shape, given_fill, given_dtype] = inputs;
-		let dtype = given_dtype || 'float32';
+	function __get_tensor__desc_func(tensor_trace, node, inputs, collection_bins){
+		let [shape, fill, dtype, collections] = inputs;
+		if(shape == undefined) throw({message: 'shape must be defined'})
+		if(fill == undefined) throw({message: 'fill must be defined'})
+		dtype = dtype || 'float32';
+		collections = collections || [];
 		if(isTensor$1(dtype)) { dtype = dtype.dtype; }
-		if(given_shape == undefined) throw({message: 'shape must be defined'})
-		if(given_fill == undefined) throw({message: 'fill must be defined'})
-		let shape = given_shape;
-		let fill = given_fill;
-		if(isTensor$1(given_shape)){ shape = given_shape.shape; }
+		if(isTensor$1(shape)){ shape = shape.shape; }
 		try{shape = new tensor_shape$1(shape);}
 		catch(e){
 			const message = 'Provided shape is not a valid tensor shape. ' +
@@ -753,20 +752,26 @@
 		}
 		const supported_fills = new Set(['ones', 'zeros',
 			'normal', 'truncated_normal']);
-		if(supported_fills.has(given_fill)){
-			fill = {type: 'symbol', symbol: given_fill};
-		} else if(!isNaN(+given_fill)){
-			fill = {type: 'scalar', val: +given_fill};
+		if(supported_fills.has(fill)){
+			fill = {type: 'symbol', symbol: fill};
+		} else if(!isNaN(+fill)){
+			fill = {type: 'scalar', val: +fill};
 		} else{
-			const message = `Fill not supported: "${given_fill}". ` +
+			const message = `Fill not supported: "${fill}". ` +
 				'Must either be a number (as a string), or one of the following: '+
 				[...supported_fills].map(a=>`"${a}"`).join(', ');
 			throw({message})
 		}
-		const attr = {shape: shape, fill: fill, dtype: dtype},
-			out = new tensor_description$1(shape, dtype, node.name+':0', 'get_tensor',
-				[], attr),
+		const out = new tensor_description$1(shape, dtype, node.name+':0',
+				'get_tensor', [], {shape, fill, dtype}),
 			results = {[out.val_ref]: out};
+		collections.forEach(bin => {
+			if(collection_bins.hasOwnProperty(bin)){
+				collection_bins[bin][out.val_ref] = out;
+			} else {
+				collection_bins[bin] = {[out.val_ref]: out};
+			}
+		});
 		Object.assign(tensor_trace, results);
 		return results
 	}
@@ -778,7 +783,8 @@
 		doc: new op_doc(['shape, a vector or tensor whose shape will be inherited',
 			'fill, one of (number, "ones", "zeros", "normal", "truncated_normal")',
 			'(optional) dtype, either undefined, a string, ' +
-				'or a tensor whose dtype will be inherited'],
+				'or a tensor whose dtype will be inherited',
+			'(optional) a list of bins to add the tensor to'],
 		['tensor'], 'produces a tensor')
 	};
 
@@ -1583,7 +1589,8 @@
 	 */
 	function stage_two(stageOneOut, moduleName, inputDescriptions){
 		let valueTrace = {},
-			tensorTrace = {};
+			tensorTrace = {},
+			collections = {};
 		Object.entries(quasiToTensor(inputDescriptions)).forEach(([valRef, val])=>{
 			const pair = {[valRef]: val};
 			Object.assign(valueTrace, pair);
@@ -1594,7 +1601,7 @@
 		flatModule.nodes.forEach(node => {
 			if(inputNames.has(node.name)){return} // inputs already recieved traces
 			const fn = inputs => primitives[node.op]
-				.desc_function(tensorTrace, node, inputs);
+				.desc_function(tensorTrace, node, inputs, collections);
 			try {
 				const fnOut = fn(node.input.map(ref => valueTrace[ref]));
 				Object.assign(valueTrace, fnOut);
@@ -1608,6 +1615,7 @@
 		}});
 		return {val_trace: valueTrace,
 			tensor_trace: tensorTrace,
+			collections,
 			output: outputs.map(t=>t.val_ref),
 			output_names: flatModule.output,
 			name: moduleName,

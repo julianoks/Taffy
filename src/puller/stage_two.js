@@ -46,7 +46,8 @@ function quasiToTensor(inputDesc){
  */
 export function stage_two(stageOneOut, moduleName, inputDescriptions){
 	let valueTrace = {},
-		tensorTrace = {}
+		tensorTrace = {},
+		collections = {}
 	Object.entries(quasiToTensor(inputDescriptions)).forEach(([valRef, val])=>{
 		const pair = {[valRef]: val}
 		Object.assign(valueTrace, pair)
@@ -57,7 +58,7 @@ export function stage_two(stageOneOut, moduleName, inputDescriptions){
 	flatModule.nodes.forEach(node => {
 		if(inputNames.has(node.name)){return} // inputs already recieved traces
 		const fn = inputs => primitives[node.op]
-			.desc_function(tensorTrace, node, inputs)
+			.desc_function(tensorTrace, node, inputs, collections)
 		try {
 			const fnOut = fn(node.input.map(ref => valueTrace[ref]))
 			Object.assign(valueTrace, fnOut)
@@ -71,6 +72,7 @@ export function stage_two(stageOneOut, moduleName, inputDescriptions){
 	}})
 	return {val_trace: valueTrace,
 		tensor_trace: tensorTrace,
+		collections,
 		output: outputs.map(t=>t.val_ref),
 		output_names: flatModule.output,
 		name: moduleName,
