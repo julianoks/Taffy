@@ -492,12 +492,11 @@ const __scalar__primitive = {
 ---------------------------------
 */
 
-function __get_tensor__desc_func(tensor_trace, node, inputs, collection_bins){
-	let [shape, fill, dtype, collections] = inputs
+function __get_tensor__desc_func(tensor_trace, node, inputs){
+	let [shape, fill, dtype] = inputs
 	if(shape == undefined) throw({message: 'shape must be defined'})
 	if(fill == undefined) throw({message: 'fill must be defined'})
 	dtype = dtype || 'float32'
-	collections = collections || []
 	if(isTensor(dtype)) { dtype = dtype.dtype }
 	if(isTensor(shape)){ shape = shape.shape }
 	try{shape = new tensor_shape(shape)}
@@ -522,13 +521,6 @@ function __get_tensor__desc_func(tensor_trace, node, inputs, collection_bins){
 	const out = new tensor_description(shape, dtype, node.name+':0',
 			'get_tensor', [], {shape, fill, dtype}),
 		results = {[out.val_ref]: out}
-	collections.forEach(bin => {
-		if(collection_bins.hasOwnProperty(bin)){
-			collection_bins[bin][out.val_ref] = out
-		} else {
-			collection_bins[bin] = {[out.val_ref]: out}
-		}
-	})
 	Object.assign(tensor_trace, results)
 	return results
 }
@@ -540,8 +532,7 @@ const __get_tensor__primitive = {
 	doc: new op_doc(['shape, a vector or tensor whose shape will be inherited',
 		'fill, one of (number, "ones", "zeros", "normal", "truncated_normal")',
 		'(optional) dtype, either undefined, a string, ' +
-			'or a tensor whose dtype will be inherited',
-		'(optional) a list of bins to add the tensor to'],
+			'or a tensor whose dtype will be inherited'],
 	['tensor'], 'produces a tensor')
 }
 
@@ -550,17 +541,30 @@ const __get_tensor__primitive = {
 ----------- variable  -----------
 ---------------------------------
 */
-function __variable__desc_func(tensor_trace, node, inputs){
-	if(inputs.length != 1) throw({message: 'must take exactly 1 input'})
-	if(!isTensor(inputs[0])) throw({message: 'input must be a tensor'})
-	const results = inputs.reduce((acc,v,i)=> {
-		const name = node.name+':' + i,
-			{shape, dtype} = v,
-			tshape = new tensor_shape(shape),
-			new_tensor = new tensor_description(tshape, dtype, name, 'variable',
-				[v.val_ref], {})
-		return Object.assign(acc, {[name]: new_tensor})
-	}, {})
+function __variable__desc_func(tensor_trace, node, inputs, collection_bins){
+	if(!(inputs.length === 1 || inputs.length === 2)){
+		throw({message: 'must take one or two inputs'})
+	}
+	let [tensor, collections] = inputs
+	if(!isTensor(tensor)) throw({message: 'input #0 must be a tensor'})
+	collections = collections || []
+	collections = typeof(collections)===typeof('')? [collections] : collections
+	if(!collections.every(s => typeof(s)===typeof(''))){
+		throw({message: 'input #1 must be a string or list of strings'})
+	}
+	const name = `${node.name}:0`,
+		{shape, dtype} = tensor,
+		tshape = new tensor_shape(shape),
+		out = new tensor_description(tshape, dtype, name, 'variable',
+			[tensor.val_ref], {})
+	collections.forEach(bin => {
+		if(collection_bins.hasOwnProperty(bin)){
+			collection_bins[bin][out.val_ref] = out
+		} else {
+			collection_bins[bin] = {[out.val_ref]: out}
+		}
+	})
+	const results = {[out.val_ref]: out}
 	Object.assign(tensor_trace, results)
 	return results
 }
@@ -569,7 +573,9 @@ const __variable__primitive = {
 	name: 'variable',
 	type: 'tensor',
 	desc_function: __variable__desc_func,
-	doc: new op_doc(['tensor'], ['tensor'],
+	doc: new op_doc(
+		['tensor', '(optional) a bin or list of bins to add the tensor to'],
+		['tensor'],
 		'initializes tensor to provided value')
 }
 
