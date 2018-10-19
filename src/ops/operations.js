@@ -1101,7 +1101,8 @@ function __get_collection__desc_func(tensor_trace, node, inputs, coll_bins){
 		.filter(name => coll_bins.hasOwnProperty(name))
 		.map(name => coll_bins[name])
 		.reduce((acc, coll) => Object.assign(acc,coll), {})
-	return Array.from(Object.values(dict))
+	const results = {[`${node.name}:0`]: Array.from(Object.values(dict))}
+	return results
 }
 
 const __get_collection__primitive = {
