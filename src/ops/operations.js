@@ -1059,7 +1059,7 @@ function __js_function__desc_func(tensor_trace, node, inputs){
 	let fn = undefined
 	let result = undefined
 	try {
-		fn = eval(literals[0])
+		fn = eval(node.literal[0])
 	} catch(e){
 		throw({message: 'Could not evaluate function string, '+
 			`got error: ${e.toString()}`})
