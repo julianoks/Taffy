@@ -1089,6 +1089,34 @@ const __js_function__primitive = {
 
 /*
 ---------------------------------
+-------- get_collection  --------
+---------------------------------
+*/
+function __get_collection__desc_func(tensor_trace, node, inputs, coll_bins){
+	const collections = Array.isArray(inputs[0])? inputs[0] : [inputs[0]]
+	if(!collections.every(s => typeof(s)===typeof(''))){
+		throw({message: 'Input must be a string or list of strings'})
+	}
+	const dict = collections
+		.filter(name => coll_bins.hasOwnProperty(name))
+		.map(name => coll_bins[name])
+		.reduce((acc, coll) => Object.assign(acc,coll), {})
+	return Array.from(Object.values(dict))
+}
+
+const __get_collection__primitive = {
+	name: 'get_collection',
+	type: 'control',
+	desc_function: __get_collection__desc_func,
+	doc: new op_doc(
+		['collection name, or list of names, as strings',
+			'...optional control edges'],
+		['list of tensors in the specified collections'],
+		'finds a list of tensors in the specified collection(s)')
+}
+
+/*
+---------------------------------
 --------- convolution  ----------
 ---------------------------------
 */
@@ -1137,5 +1165,6 @@ export const primitives = [
 	__gather__primitive,
 	__reshape__primitive,
 	__js_function__primitive,
+	__get_collection__primitive,
 ].reduce((a,p)=>Object.assign(a, {[p.name]: p}), {})
 
