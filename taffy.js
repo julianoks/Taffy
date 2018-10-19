@@ -1299,11 +1299,10 @@
 	---------------------------------
 	*/
 	function __js_function__desc_func(tensor_trace, node, inputs){
-		const [fnString, ...args] = inputs;
 		let fn = undefined;
 		let result = undefined;
 		try {
-			fn = eval(fnString);
+			fn = eval(literals[0]);
 		} catch(e){
 			throw({message: 'Could not evaluate function string, '+
 				`got error: ${e.toString()}`})
@@ -1313,7 +1312,7 @@
 				`instead got type "${typeof(fn)}"`})
 		}
 		try {
-			result = fn(...args);
+			result = fn(...inputs);
 		} catch(e){
 			throw({message: `Error in applying function: ${e.toString()}`})
 		}
@@ -1326,7 +1325,7 @@
 		name: 'js_function',
 		type: 'control',
 		desc_function: __js_function__desc_func, 
-		doc: new op_doc(['javascript function (a string)', '...arguments'],
+		doc: new op_doc(['...arguments'],
 			['the outputs of the function applied to the arguments'],
 			'applies the function to the arguments, and returns the results')
 	};
