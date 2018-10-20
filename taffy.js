@@ -1271,7 +1271,7 @@
 		if(oldSymbols !== newSymbols){
 			throw({message: 'Symbolic dimensions did not match.'})
 		}
-		if(!newSymbols.filter(x=>!isNaN(x)).every(x=>Number.isInteger(x)&&x>=0)){
+		if(!newShape.filter(x=>!isNaN(x)).every(x=>Number.isInteger(x)&&x>=0)){
 			throw({message: 'Dimensions must be nonnegative integers.'})
 		}
 		const getSize = arr => arr.filter(x=>!isNaN(x)).reduce((a,b) => a*b, 1);
