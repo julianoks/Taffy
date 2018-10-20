@@ -1280,6 +1280,9 @@
 		}
 		const shapeEncoding = newShape.map(x => !isNaN(x)? x :
 			''+tensor.shape.indexOf(x));
+		try {
+			newShape = new tensor_shape$1(newShape);
+		} catch(message){ throw({message}) }
 		const out = new tensor_description$1(newShape, tensor.dtype, node.name+':0',
 			'reshape', [tensor.val_ref], {shapeEncoding});
 		const results = {[out.val_ref]: out};

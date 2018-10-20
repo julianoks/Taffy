@@ -1037,6 +1037,9 @@ function __reshape__desc_func(tensor_trace, node, inputs){
 	}
 	const shapeEncoding = newShape.map(x => !isNaN(x)? x :
 		''+tensor.shape.indexOf(x))
+	try {
+		newShape = new tensor_shape(newShape)
+	} catch(message){ throw({message}) }
 	const out = new tensor_description(newShape, tensor.dtype, node.name+':0',
 		'reshape', [tensor.val_ref], {shapeEncoding})
 	const results = {[out.val_ref]: out}
