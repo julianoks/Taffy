@@ -1019,22 +1019,26 @@ const __gather__primitive = {
 */
 function __reshape__desc_func(tensor_trace, node, inputs){
 	if(inputs.length != 2) throw({message: 'must take two inputs'})
-	const [tensor, newShape] = inputs
+	let [tensor, newShape] = inputs
 	if(!isTensor(tensor)) throw({message: 'first input must be a tensor'})
 	// checking shape
-	if(!(Array.isArray(newShape) &&
-		newShape.every(x => Number.isInteger(x) && x>=0))){
-		throw({message: 'second input must be an array of '+
-			'nonnegative integers'})
+	newShape = Array.isArray(newShape)? newShape : [newShape]
+	const oldSymbols = JSON.stringify(tensor.shape.filter(isNaN).sort())
+	const newSymbols = JSON.stringify(newShape.filter(isNaN).sort())
+	if(oldSymbols !== newSymbols){
+		throw({message: 'Symbolic dimensions did not match.'})
 	}
-	const oldSize = tensor.shape.reduce((a,b) => a*b, 1)
-	const proposedSize = newShape.reduce((a,b) => a*b, 1)
-	if(oldSize !== proposedSize){
-		throw({message: `Size of new shape, ${proposedSize},`+
-			` must match original size, ${oldSize}.`})
+	if(!newSymbols.filter(x=>!isNaN(x)).every(x=>Number.isInteger(x)&&x>=0)){
+		throw({message: 'Dimensions must be nonnegative integers.'})
 	}
+	const getSize = arr => arr.filter(x=>!isNaN(x)).reduce((a,b) => a*b, 1)
+	if(getSize(newShape) !== getSize(tensor.shape)){
+		throw({message: 'Sizes do not match'})
+	}
+	const shapeEncoding = newShape.map(x => !isNaN(x)? x :
+		''+tensor.shape.indexOf(x))
 	const out = new tensor_description(newShape, tensor.dtype, node.name+':0',
-		'reshape', [tensor.val_ref], {newShape})
+		'reshape', [tensor.val_ref], {shapeEncoding})
 	const results = {[out.val_ref]: out}
 	Object.assign(tensor_trace, results)
 	return results
