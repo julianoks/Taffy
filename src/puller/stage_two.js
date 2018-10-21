@@ -76,5 +76,6 @@ export function stage_two(stageOneOut, moduleName, inputDescriptions){
 		output: outputs.map(t=>t.val_ref),
 		output_names: flatModule.output,
 		name: moduleName,
-		input_descriptions: inputDescriptions}
+		input_descriptions: inputDescriptions,
+		input_names: flatModule.input}
 }

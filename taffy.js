@@ -1661,7 +1661,8 @@
 			output: outputs.map(t=>t.val_ref),
 			output_names: flatModule.output,
 			name: moduleName,
-			input_descriptions: inputDescriptions}
+			input_descriptions: inputDescriptions,
+			input_names: flatModule.input}
 	}
 
 	const stripIndex = s => s.slice(0,s.lastIndexOf(':'));
@@ -1899,6 +1900,10 @@
 		});
 	}.toString().replace(/\r|\n|\t|\s\s+/g, '');
 
+	const inputObjectToInputs = 'const inputs = !Array.isArray(inputObject)? '+
+		'inputObject : this.input_names.reduce('+
+		'(acc,name,i)=>Object.assign(acc,{[name]:inputObject[i]}),{});';
+
 	function get_forward(unwrapped, re_reffed_nodes,
 		input_descs, name_map, subgraphs){
 		const input_acquisition = 'const tf = this.tf;' + 
@@ -1914,18 +1919,22 @@
 					`${convert_ref(name_map, unwrapped.output[i])}`)
 				.join(','),
 			inner_tidy = `${input_acquisition}${body}return {${map_innards}};`,
-			check_statement = 'if(check){this.check_inputs(inputs);}',
+			check_statement = inputObjectToInputs +
+				'if(check){this.check_inputs(inputs);}',
 			return_statement = `return this.tf.tidy(()=>{${inner_tidy}})`,
-			composed_fn = 'function(inputs, check=true){' +
+			composed_fn = 'function(inputObject, check=true){' +
 				`${check_statement}${return_statement}}`;
 		return composed_fn
 	}
 
-	const optimize = function(loss, inputs,
+	const optimize = function(loss, inputObject,
 		batch_size=32,
 		iterations=100,
 		optimizer=undefined,
 		check_inputs=true){
+		const inputs = !Array.isArray(inputObject)? inputObject :
+			this.input_names.reduce((acc,name,i) => 
+				Object.assign(acc,{[name]:inputObject[i]}),{});
 		const tf = this.tf;
 		const available_out = Object.entries(this.output_descriptions)
 			.filter(([,{shape}]) => shape.length==0)
@@ -2003,6 +2012,7 @@
 
 			`this.implements_module = ${stringify(unwrapped.name)};` +
 			`this.inherit_vars = ${inherit_vars};` +
+			`this.input_names = ${stringify(unwrapped.stage_two.input_names)};` +
 			`this.name_map = ${passObj(name_map)};` +
 
 			'this.inverse_name_map = Object.entries(this.name_map)' +
