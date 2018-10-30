@@ -8,6 +8,10 @@ function pruneTopsortNodes(nodes, outputNames, prune){
 	const graph = prune?
 		prune_and_topsort(nodeDeps, stripIndices(outputNames)) :
 		topological_sort(nodeDeps)
+	if(graph === false){
+		throw({message: 'Graph contains cycle',
+			metaDataIdentifier: 'cyclic_graph'})
+	}
 	return graph.map(k => nodeDict[k])
 }
 
