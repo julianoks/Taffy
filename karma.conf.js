@@ -1,5 +1,9 @@
 module.exports = (config) => {
 	var configDict = {
+		captureTimeout: 60000,
+		browserNoActivityTimeout : 60000,
+		browserDisconnectTimeout : 10000,
+		browserDisconnectTolerance : 1,
 		autoWatch: false,
 		browsers: ['Chrome'],
 		browserConsoleLogOptions: {
