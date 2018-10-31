@@ -165,18 +165,19 @@
 	function getConvOutShape(x, filter, stride, padding){
 		const batchSize = x.shape.slice(0, 1),
 			outChannels = filter.shape.slice(-1),
-			middleInDims = x.shape.slice(1, -1);
+			middleInDims = x.shape.slice(1, -1),
+			filterInDims = filter.shape.slice(1, -1);
 		let middleOutDims = [];
 		if(padding === 'same'){
 			middleOutDims = zip(middleInDims, stride)
 				.map(([inD, s]) => Math.ceil(inD / s));
 		}
 		if(padding === 'valid'){
-			middleOutDims = zip(middleInDims, filter, stride)
+			middleOutDims = zip(middleInDims, filterInDims, stride)
 				.map(([inD, f, s]) => Math.ceil((1 + inD - f) / s));
 		}
 		if(Number.isInteger(+padding)){
-			middleOutDims = zip(middleInDims, filter, stride)
+			middleOutDims = zip(middleInDims, filterInDims, stride)
 				.map(([inD, f, s]) => 1 + ((inD - f + (2 * padding)) / s));
 			if(!middleOutDims.every(Number.isInteger)){
 				throw({message: 'Invalid output shape (not an integer). ' +
