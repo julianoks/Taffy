@@ -26,8 +26,8 @@ export function run(tf,
 		console.log('example output of loss_fn',
 			stringify_output(loss_fn.forward(example_data)))
 		get_train_data(tf, train_size).then(training_data => {
-			const loss_history = loss_fn.optimize('total_loss:0',
-				training_data, batch_size, iterations)
+			const loss_history = loss_fn.optimize(
+				training_data, 'total_loss:0', batch_size, iterations)
 			console.log('loss history:', loss_history)
 			let inheritor = new loss_fn_factory(tf),
 				probsConstructor = eval(pull_and_package(

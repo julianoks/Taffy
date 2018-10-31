@@ -225,7 +225,8 @@ function get_forward(unwrapped, re_reffed_nodes,
 	return composed_fn
 }
 
-const optimize = function(loss, inputObject,
+const optimize = function(inputObject,
+	lossName=undefined,
 	batch_size=32,
 	iterations=100,
 	optimizer=undefined,
@@ -240,6 +241,10 @@ const optimize = function(loss, inputObject,
 	if(available_out.length==0){
 		throw({message: 'there are no scalar outputs, thus no eligible loss'})
 	}
+	if(available_out.length>1 && lossName === undefined){
+		console.log(`Warning: defaulting to "${available_out[0]}" as loss.`)
+	}
+	const loss = lossName? lossName : available_out[0];
 	if(!this.output_descriptions.hasOwnProperty(loss)){
 		throw({message: `"${loss}" isn't an output, outputs are ` +
 			`${Object.keys(this.output_descriptions)}`})
