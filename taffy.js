@@ -247,10 +247,9 @@
 
 	const {op_doc} = constructors;
 
-	function executeModule(moduleName, inputs, parentArgs){
-		const [tensor_trace, parentNode, , collections, modules] = parentArgs;
+	function executeModule(moduleName, inputs, parentArgs, prefix){
+		const [tensor_trace, , , collections, modules] = parentArgs;
 		const module = modules[moduleName];
-		const prefix = parentNode.name+'/';
 		let valueTrace = module.input.map(s=>prefix+s+':0').reduce((acc,k,i) =>
 			Object.assign(acc, {[k]:inputs[i]}), {});
 		module.nodes.forEach(nodeOrig => {
@@ -275,10 +274,17 @@
 	const makeOpFn = (op, args) => {
 		const [tensor_trace, node, , colls, modules] = args;
 		if(primitives.hasOwnProperty(op)){
-			return inputs => primitives[op]
-				.desc_function(tensor_trace, node, inputs, colls, modules)
+			let counter = 0;
+			return inputs => {
+				const name = `${node.name}/ITERATION_${counter++}`;
+				const newNode = Object.assign({}, node, {name});
+				return primitives[op].desc_function(
+					tensor_trace, newNode, inputs, colls, modules)
+			}
 		} else if(modules.hasOwnProperty(op)){
-			return inputs => executeModule(op, inputs, args)
+			let counter = 0;
+			return inputs => executeModule(op, inputs, args,
+				`${node.name}/ITERATION_${counter++}/`)
 		} else {
 			throw({message: `"${op}" is not a primitive or module name`})
 		}
@@ -320,6 +326,7 @@
 		const [, node, inputs] = args;
 		const op = node.literal[0];
 		const opFn = makeOpFn(op, args);
+		if(inputs[0].length==0){return null}
 		if(!Array.isArray(inputs[0])){
 			throw({message: 'First input must be an array'})
 		}
@@ -349,6 +356,7 @@
 		const [, node, inputs] = args;
 		const op = node.literal[0];
 		const opFn = makeOpFn(op, args);
+		if(inputs[0].length==0){return {[`${node.name}:0`]:null}}
 		if(!Array.isArray(inputs[0])){
 			throw({message: 'First input must be an array'})
 		}
@@ -381,6 +389,7 @@
 		const [, node, inputs] = args;
 		const op = node.literal[0];
 		const opFn = makeOpFn(op, args);
+		if(inputs[0].length==0){return {[`${node.name}:0`]:null}}
 		if(!Array.isArray(inputs[0])){
 			throw({message: 'First input must be an array'})
 		}
