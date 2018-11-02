@@ -23,16 +23,16 @@ function executeModule(moduleName, inputs, parentArgs){
 }
 
 function assertListOfArrays(inputs){
-    if(!inputs.every(a => Array.isArray(a))){
+	if(!inputs.every(a => Array.isArray(a))){
 		throw({message: 'inputs must be arrays'})
 	}
 }
 
 const makeOpFn = (op, args) => {
-    const [tensor_trace, node, , colls, modules] = args
-    if(primitives.hasOwnProperty(op)){
-        return inputs => primitives[op]
-            .desc_function(tensor_trace, node, inputs, colls, modules)
+	const [tensor_trace, node, , colls, modules] = args
+	if(primitives.hasOwnProperty(op)){
+		return inputs => primitives[op]
+			.desc_function(tensor_trace, node, inputs, colls, modules)
 	} else if(modules.hasOwnProperty(op)){
 		return inputs => executeModule(op, inputs, args)
 	} else {
@@ -48,13 +48,13 @@ const makeOpFn = (op, args) => {
 function __map__desc_func(...args){
 	const [, node, inputs] = args
 	const op = node.literal[0]
-    const opFn = makeOpFn(op, args)
-    assertListOfArrays(inputs)
-    if(!inputs.every(a => a.length===inputs[0].length)){
+	const opFn = makeOpFn(op, args)
+	assertListOfArrays(inputs)
+	if(!inputs.every(a => a.length===inputs[0].length)){
 		throw({message: 'inputs must be of same length'})
 	}
 	const transposed = inputs[0].map((_,i) => inputs.map(r => r[i]))
-    const results = transposed.map(opFn).map(o => Object.values(o)[0])
+	const results = transposed.map(opFn).map(o => Object.values(o)[0])
 	return {[`${node.name}:0`]: results}
 }
 
@@ -75,14 +75,14 @@ const __map__primitive = {
 function __reduce__desc_func(...args){
 	const [, node, inputs] = args
 	const op = node.literal[0]
-    const opFn = makeOpFn(op, args)
-    if(!Array.isArray(inputs[0])){
-        throw({message: "First input must be an array"})
-    }
-    const getFirst = o => Object.values(o)[0]
-    const reducer = (a,b) => getFirst(opFn([a,b]))
-    const results = inputs.length==1? inputs[0].reduce(reducer) :
-        inputs[0].reduce(reducer, inputs[1])
+	const opFn = makeOpFn(op, args)
+	if(!Array.isArray(inputs[0])){
+		throw({message: 'First input must be an array'})
+	}
+	const getFirst = o => Object.values(o)[0]
+	const reducer = (a,b) => getFirst(opFn([a,b]))
+	const results = inputs.length==1? inputs[0].reduce(reducer) :
+		inputs[0].reduce(reducer, inputs[1])
 	return {[`${node.name}:0`]: results}
 }
 
@@ -92,7 +92,7 @@ const __reduce__primitive = {
 	desc_function: __reduce__desc_func,
 	doc: new op_doc(['array of values', '(optional) initial accumulator'],
 		['The resulting accumulator'],
-        'Executes the operation along the array, ie f(x3,f(x1,x2)). '+
+		'Executes the operation along the array, ie f(x3,f(x1,x2)). '+
         'The operation takes the accumulator as the first argument.')
 }
 
@@ -104,16 +104,16 @@ const __reduce__primitive = {
 function __reductions__desc_func(...args){
 	const [, node, inputs] = args
 	const op = node.literal[0]
-    const opFn = makeOpFn(op, args)
-    if(!Array.isArray(inputs[0])){
-        throw({message: "First input must be an array"})
-    }
-    const getFirst = o => Object.values(o)[0]
-    const reducer = (a,b) => getFirst(opFn([a,b]))
-    const fullReductions = (arr, init) => arr.reduce((acc,v) => 
-        acc.concat([reducer(acc.slice(-1)[0], v)]), [init])
-    const results = inputs.length>1? fullReductions(...inputs) :
-        fullReductions(inputs[0].slice(1), inputs[0][0])
+	const opFn = makeOpFn(op, args)
+	if(!Array.isArray(inputs[0])){
+		throw({message: 'First input must be an array'})
+	}
+	const getFirst = o => Object.values(o)[0]
+	const reducer = (a,b) => getFirst(opFn([a,b]))
+	const fullReductions = (arr, init) => arr.reduce((acc,v) => 
+		acc.concat([reducer(acc.slice(-1)[0], v)]), [init])
+	const results = inputs.length>1? fullReductions(...inputs) :
+		fullReductions(inputs[0].slice(1), inputs[0][0])
 	return {[`${node.name}:0`]: results}
 }
 
@@ -123,7 +123,7 @@ const __reductions__primitive = {
 	desc_function: __reductions__desc_func,
 	doc: new op_doc(['array of values', '(optional) initial accumulator'],
 		['An array of the history of the accumulator'],
-        'Executes the operation along the array, ie x1, f(x1,x2), '+
+		'Executes the operation along the array, ie x1, f(x1,x2), '+
         'f(x3,f(x1,x2)),... .'+
         'The operation takes the accumulator as the first argument.')
 }
@@ -136,11 +136,11 @@ const __reductions__primitive = {
 function __apply__desc_func(...args){
 	const [, node, inputs] = args
 	const op = node.literal[0]
-    const opFn = makeOpFn(op, args)
-    if(!Array.isArray(inputs[0])){
-        throw({message: "First input must be an array"})
-    }
-    const results = opFn(inputs[0])
+	const opFn = makeOpFn(op, args)
+	if(!Array.isArray(inputs[0])){
+		throw({message: 'First input must be an array'})
+	}
+	const results = opFn(inputs[0])
 	return {[`${node.name}:0`]: Object.values(results)[0]}
 }
 
@@ -150,8 +150,8 @@ const __apply__primitive = {
 	desc_function: __apply__desc_func,
 	doc: new op_doc(['array of values'],
 		['The result of applying the operation to the values'],
-        'Executes the operation on the values in the array. ')
+		'Executes the operation on the values in the array. ')
 }
 
 export const higherOrderPrimitives = [__map__primitive,
-    __reduce__primitive, __apply__primitive, __reductions__primitive]
+	__reduce__primitive, __apply__primitive, __reductions__primitive]

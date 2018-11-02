@@ -245,7 +245,162 @@
 		return results
 	}
 
-	const {op_doc, tensor_description: tensor_description$1, tensor_shape: tensor_shape$1} = constructors;
+	const {op_doc} = constructors;
+
+	function executeModule(moduleName, inputs, parentArgs){
+		const [tensor_trace, parentNode, , collections, modules] = parentArgs;
+		const module = modules[moduleName];
+		const prefix = parentNode.name+'/';
+		let valueTrace = module.input.map(s=>prefix+s+':0').reduce((acc,k,i) =>
+			Object.assign(acc, {[k]:inputs[i]}), {});
+		module.nodes.forEach(nodeOrig => {
+			const node = Object.assign({}, nodeOrig, {name: prefix+nodeOrig.name});
+			if(node.op === 'placeholder'){return}
+			const fn = nodeIn => primitives[node.op]
+				.desc_function(tensor_trace, node,nodeIn, collections, modules);
+			const fnOut = fn(node.input.map(ref => valueTrace[prefix+ref]));
+			Object.assign(valueTrace, fnOut);
+		});
+		const result = module.output.map(s=>prefix+s).reduce((acc, k) =>
+			Object.assign(acc, {[k]:valueTrace[k]}), {});
+		return result
+	}
+
+	function assertListOfArrays(inputs){
+		if(!inputs.every(a => Array.isArray(a))){
+			throw({message: 'inputs must be arrays'})
+		}
+	}
+
+	const makeOpFn = (op, args) => {
+		const [tensor_trace, node, , colls, modules] = args;
+		if(primitives.hasOwnProperty(op)){
+			return inputs => primitives[op]
+				.desc_function(tensor_trace, node, inputs, colls, modules)
+		} else if(modules.hasOwnProperty(op)){
+			return inputs => executeModule(op, inputs, args)
+		} else {
+			throw({message: `"${op}" is not a primitive or module name`})
+		}
+	};
+
+	/*
+	---------------------------------
+	-------------- map --------------
+	---------------------------------
+	*/
+	function __map__desc_func(...args){
+		const [, node, inputs] = args;
+		const op = node.literal[0];
+		const opFn = makeOpFn(op, args);
+		assertListOfArrays(inputs);
+		if(!inputs.every(a => a.length===inputs[0].length)){
+			throw({message: 'inputs must be of same length'})
+		}
+		const transposed = inputs[0].map((_,i) => inputs.map(r => r[i]));
+		const results = transposed.map(opFn).map(o => Object.values(o)[0]);
+		return {[`${node.name}:0`]: results}
+	}
+
+	const __map__primitive = {
+		name: 'map',
+		type: 'control',
+		desc_function: __map__desc_func,
+		doc: new op_doc(['...rows'],
+			['the result of applying the operation to each column'],
+			'maps the specified operation across columns')
+	};
+
+	/*
+	---------------------------------
+	------------- reduce ------------
+	---------------------------------
+	*/
+	function __reduce__desc_func(...args){
+		const [, node, inputs] = args;
+		const op = node.literal[0];
+		const opFn = makeOpFn(op, args);
+		if(!Array.isArray(inputs[0])){
+			throw({message: 'First input must be an array'})
+		}
+		const getFirst = o => Object.values(o)[0];
+		const reducer = (a,b) => getFirst(opFn([a,b]));
+		const results = inputs.length==1? inputs[0].reduce(reducer) :
+			inputs[0].reduce(reducer, inputs[1]);
+		return {[`${node.name}:0`]: results}
+	}
+
+	const __reduce__primitive = {
+		name: 'reduce',
+		type: 'control',
+		desc_function: __reduce__desc_func,
+		doc: new op_doc(['array of values', '(optional) initial accumulator'],
+			['The resulting accumulator'],
+			'Executes the operation along the array, ie f(x3,f(x1,x2)). '+
+	        'The operation takes the accumulator as the first argument.')
+	};
+
+	/*
+	---------------------------------
+	----------- reductions ----------
+	---------------------------------
+	*/
+	function __reductions__desc_func(...args){
+		const [, node, inputs] = args;
+		const op = node.literal[0];
+		const opFn = makeOpFn(op, args);
+		if(!Array.isArray(inputs[0])){
+			throw({message: 'First input must be an array'})
+		}
+		const getFirst = o => Object.values(o)[0];
+		const reducer = (a,b) => getFirst(opFn([a,b]));
+		const fullReductions = (arr, init) => arr.reduce((acc,v) => 
+			acc.concat([reducer(acc.slice(-1)[0], v)]), [init]);
+		const results = inputs.length>1? fullReductions(...inputs) :
+			fullReductions(inputs[0].slice(1), inputs[0][0]);
+		return {[`${node.name}:0`]: results}
+	}
+
+	const __reductions__primitive = {
+		name: 'reductions',
+		type: 'control',
+		desc_function: __reductions__desc_func,
+		doc: new op_doc(['array of values', '(optional) initial accumulator'],
+			['An array of the history of the accumulator'],
+			'Executes the operation along the array, ie x1, f(x1,x2), '+
+	        'f(x3,f(x1,x2)),... .'+
+	        'The operation takes the accumulator as the first argument.')
+	};
+
+	/*
+	---------------------------------
+	------------- apply -------------
+	---------------------------------
+	*/
+	function __apply__desc_func(...args){
+		const [, node, inputs] = args;
+		const op = node.literal[0];
+		const opFn = makeOpFn(op, args);
+		if(!Array.isArray(inputs[0])){
+			throw({message: 'First input must be an array'})
+		}
+		const results = opFn(inputs[0]);
+		return {[`${node.name}:0`]: Object.values(results)[0]}
+	}
+
+	const __apply__primitive = {
+		name: 'apply',
+		type: 'control',
+		desc_function: __apply__desc_func,
+		doc: new op_doc(['array of values'],
+			['The result of applying the operation to the values'],
+			'Executes the operation on the values in the array. ')
+	};
+
+	const higherOrderPrimitives = [__map__primitive,
+		__reduce__primitive, __apply__primitive, __reductions__primitive];
+
+	const {op_doc: op_doc$1, tensor_description: tensor_description$1, tensor_shape: tensor_shape$1} = constructors;
 
 	/*
 	---------------------------------
@@ -317,7 +472,7 @@
 		desc_function: function(){
 			throw({message: 'The placeholder desc_function shouldn\'t be called!'})
 		},
-		doc: new op_doc([],
+		doc: new op_doc$1([],
 			['Any value supplied to the placeholder'],
 			'Forwards a single supplied value. Takes no inputs.')
 	};
@@ -347,7 +502,7 @@
 		name: 'relu',
 		type: 'tensor',
 		desc_function: __relu__desc_func,
-		doc: new op_doc(['tensor'], ['ReLU, ie f(x)=max(0,x)'],
+		doc: new op_doc$1(['tensor'], ['ReLU, ie f(x)=max(0,x)'],
 			'ReLU activation function')
 	};
 
@@ -376,7 +531,7 @@
 		name: 'sigmoid',
 		type: 'tensor',
 		desc_function: __sigmoid__desc_func,
-		doc: new op_doc(['tensor'], ['sigmoid of input'],
+		doc: new op_doc$1(['tensor'], ['sigmoid of input'],
 			'sigmoid activation function')
 	};
 
@@ -405,7 +560,7 @@
 		name: 'tanh',
 		type: 'tensor',
 		desc_function: __tanh__desc_func,
-		doc: new op_doc(['tensor'], ['tanh of input'], 'tanh activation function')
+		doc: new op_doc$1(['tensor'], ['tanh of input'], 'tanh activation function')
 	};
 
 
@@ -431,7 +586,7 @@
 		name: 'exp',
 		type: 'tensor',
 		desc_function: __exp__desc_func,
-		doc: new op_doc(['tensor'], ['elementwise exp, ie f(x)=e^x'],
+		doc: new op_doc$1(['tensor'], ['elementwise exp, ie f(x)=e^x'],
 			'exponential function, ie f(x)=e^x')
 	};
 
@@ -458,7 +613,7 @@
 		name: 'abs',
 		type: 'tensor',
 		desc_function: __abs__desc_func,
-		doc: new op_doc(['tensor'], ['elementwise absolute value, ie f(x)=|x|'],
+		doc: new op_doc$1(['tensor'], ['elementwise absolute value, ie f(x)=|x|'],
 			'abs value function, ie f(x)=|x|')
 	};
 
@@ -485,7 +640,7 @@
 		name: 'negate',
 		type: 'tensor',
 		desc_function: __negate__desc_func,
-		doc: new op_doc(['tensor'], ['negation, ie f(x)=-x'],
+		doc: new op_doc$1(['tensor'], ['negation, ie f(x)=-x'],
 			'negation function, ie f(x)=-x')
 	};
 
@@ -512,7 +667,7 @@
 		name: 'sqrt',
 		type: 'tensor',
 		desc_function: __sqrt__desc_func,
-		doc: new op_doc(['tensor'], ['elementwise square root'],
+		doc: new op_doc$1(['tensor'], ['elementwise square root'],
 			'square root function')
 	};
 
@@ -568,7 +723,7 @@
 		name: 'matmul',
 		type: 'tensor',
 		desc_function: __matmul__desc_func,
-		doc: new op_doc(['tensor 1', 'tensor 2'],
+		doc: new op_doc$1(['tensor 1', 'tensor 2'],
 			['matrix multiplication of tensors'],
 			'matrix multiplication of tensors')
 	};
@@ -594,7 +749,7 @@
 		name: 'add',
 		type: 'tensor',
 		desc_function: __add__desc_func,
-		doc: new op_doc(['...tensor values'], ['sum of tensors'],
+		doc: new op_doc$1(['...tensor values'], ['sum of tensors'],
 			'variadic function that adds n>=1 tensors')
 	};
 
@@ -619,7 +774,7 @@
 		name: 'subtract',
 		type: 'tensor',
 		desc_function: __subtract__desc_func,
-		doc: new op_doc(['tensor 1', 'tensor 2'],
+		doc: new op_doc$1(['tensor 1', 'tensor 2'],
 			['element-wise subtraction of tensors'],
 			'subtracts 2 tensors element-wise')
 	};
@@ -645,7 +800,7 @@
 		name: 'multiply',
 		type: 'tensor',
 		desc_function: __multiply__desc_func,
-		doc: new op_doc(['...tensor values'],
+		doc: new op_doc$1(['...tensor values'],
 			['element-wise product of tensors'],
 			'variadic function that multiplies n>=1 tensors element-wise')
 	};
@@ -671,7 +826,7 @@
 		name: 'divide',
 		type: 'tensor',
 		desc_function: __divide__desc_func,
-		doc: new op_doc(['tensor 1', 'tensor 2'],
+		doc: new op_doc$1(['tensor 1', 'tensor 2'],
 			['element-wise division of tensors'],
 			'divides 2 tensors element-wise')
 	};
@@ -697,7 +852,7 @@
 		name: 'pow',
 		type: 'tensor',
 		desc_function: __pow__desc_func,
-		doc: new op_doc(['tensor 1', 'tensor 2'],
+		doc: new op_doc$1(['tensor 1', 'tensor 2'],
 			['The power of tensor 1 to tensor 2'],
 			'The power of tensor 1 to tensor 2')
 	};
@@ -725,7 +880,7 @@
 		name: 'scalar',
 		type: 'tensor',
 		desc_function: __scalar__desc_func,
-		doc: new op_doc(['scalar value', '(optional) dtype'], ['a scalar'],
+		doc: new op_doc$1(['scalar value', '(optional) dtype'], ['a scalar'],
 			'produces a tensor scalar')
 	};
 
@@ -773,7 +928,7 @@
 		name: 'get_tensor',
 		type: 'tensor',
 		desc_function: __get_tensor__desc_func,
-		doc: new op_doc(['shape, a vector or tensor whose shape will be inherited',
+		doc: new op_doc$1(['shape, a vector or tensor whose shape will be inherited',
 			'fill, one of (number, "ones", "zeros", "normal", "truncated_normal")',
 			'(optional) dtype, either undefined, a string, ' +
 				'or a tensor whose dtype will be inherited'],
@@ -817,7 +972,7 @@
 		name: 'variable',
 		type: 'tensor',
 		desc_function: __variable__desc_func,
-		doc: new op_doc(
+		doc: new op_doc$1(
 			['tensor', '(optional) a bin or list of bins to add the tensor to'],
 			['tensor'],
 			'initializes tensor to provided value')
@@ -839,7 +994,7 @@
 		name: 'identity',
 		type: 'control',
 		desc_function: __identity__desc_func,
-		doc: new op_doc(['...inputs'], ['...inputs'], 'forwards inputs, unchanged')
+		doc: new op_doc$1(['...inputs'], ['...inputs'], 'forwards inputs, unchanged')
 	};
 
 
@@ -859,7 +1014,7 @@
 		name: 'literals',
 		type: 'control',
 		desc_function: __literals__desc_func,
-		doc: new op_doc([], ['...literals'], 'forwards literals, unchanged')
+		doc: new op_doc$1([], ['...literals'], 'forwards literals, unchanged')
 	};
 
 
@@ -879,7 +1034,7 @@
 		name: 'parse_json',
 		type: 'control',
 		desc_function: __parse_json__desc_func,
-		doc: new op_doc(['...inputs (literals)'], ['...inputs'],
+		doc: new op_doc$1(['...inputs (literals)'], ['...inputs'],
 			'parses JSON literals')
 	};
 
@@ -904,7 +1059,7 @@
 		name: 'parse_json_list',
 		type: 'control',
 		desc_function: __parse_json_list__desc_func,
-		doc: new op_doc(['JSON representation of a list'],
+		doc: new op_doc$1(['JSON representation of a list'],
 			['...parsed entries of list'],
 			'parses a JSON representation of a list')
 	};
@@ -929,7 +1084,7 @@
 		name: 'if',
 		type: 'control',
 		desc_function: __if__desc_func,
-		doc: new op_doc(['boolean', 'value', 'value'], ['one of the values'],
+		doc: new op_doc$1(['boolean', 'value', 'value'], ['one of the values'],
 			'forwards one of the values')
 	};
 
@@ -948,7 +1103,7 @@
 		name: 'pack_list',
 		type: 'control',
 		desc_function: __pack_list__desc_func,
-		doc: new op_doc(['...values'], ['array containing the values'],
+		doc: new op_doc$1(['...values'], ['array containing the values'],
 			'packs the input values into an array')
 	};
 
@@ -967,7 +1122,7 @@
 		name: 'unpack_list',
 		type: 'control',
 		desc_function: __unpack_list__desc_func,
-		doc: new op_doc(['array of values'], ['...values'],
+		doc: new op_doc$1(['array of values'], ['...values'],
 			'unpacks the input values from an array')
 	};
 
@@ -995,7 +1150,7 @@
 		name: 'softmax',
 		type: 'tensor',
 		desc_function: __softmax__desc_func,
-		doc: new op_doc(['tensor'], ['softmax of tensor'],
+		doc: new op_doc$1(['tensor'], ['softmax of tensor'],
 			'applies the softmax function to a tensor')
 	};
 
@@ -1023,7 +1178,7 @@
 		name: 'log',
 		type: 'tensor',
 		desc_function: __log__desc_func,
-		doc: new op_doc(['tensor'], ['natural log of tensor'],
+		doc: new op_doc$1(['tensor'], ['natural log of tensor'],
 			'applies the natural log function to a tensor')
 	};
 
@@ -1061,7 +1216,7 @@
 		name: 'reduce_sum',
 		type: 'tensor',
 		desc_function: __reduce_sum__desc_func,
-		doc: new op_doc(['tensor', 'axis; a integer or array of integers'],
+		doc: new op_doc$1(['tensor', 'axis; a integer or array of integers'],
 			['a scalar'], 'sums a tensor')
 	};
 
@@ -1097,7 +1252,7 @@
 		name: 'reduce_avg',
 		type: 'tensor',
 		desc_function: __reduce_avg__desc_func,
-		doc: new op_doc(['tensor', 'axis; a integer or array of integers'],
+		doc: new op_doc$1(['tensor', 'axis; a integer or array of integers'],
 			['a scalar'],
 			'averages a tensor')
 	};
@@ -1135,7 +1290,7 @@
 		name: 'transpose',
 		type: 'tensor',
 		desc_function: __transpose__desc_func,
-		doc: new op_doc(['tensor', 'permutation (optional)'],
+		doc: new op_doc$1(['tensor', 'permutation (optional)'],
 			['tensor with permuted dimensions'],
 			'permutes the dimensions of tensor according to ' +
 			'the supplied permutation')
@@ -1169,7 +1324,7 @@
 		name: 'one_hot',
 		type: 'tensor',
 		desc_function: __one_hot__desc_func,
-		doc: new op_doc(['indices (as rank 1 tensor)', 'number of columns'],
+		doc: new op_doc$1(['indices (as rank 1 tensor)', 'number of columns'],
 			['matrix with one hot vectors as rows'],
 			'constructs a matrix where each row is a one hot vector, ' +
 			'with n_colls columns and one row for each index')
@@ -1200,7 +1355,7 @@
 		name: 'cast',
 		type: 'tensor',
 		desc_function: __cast__desc_func,
-		doc: new op_doc(['tensor', 'dtype (a string)'],
+		doc: new op_doc$1(['tensor', 'dtype (a string)'],
 			['tensor cast as dtype'],
 			'casts a tensor to a specified dtype')
 	};
@@ -1248,7 +1403,7 @@
 		name: 'gather',
 		type: 'tensor',
 		desc_function: __gather__desc_func,
-		doc: new op_doc(['x', 'indices (1d tensor with dtype "int32")',
+		doc: new op_doc$1(['x', 'indices (1d tensor with dtype "int32")',
 			'(optional) axis'],
 		['tensor of slices from `x`'],
 		'takes slices from `x` along `axis` at the specified `indices`')
@@ -1295,7 +1450,7 @@
 		name: 'reshape',
 		type: 'tensor',
 		desc_function: __reshape__desc_func,
-		doc: new op_doc(['x', 'shape (array of nonnegative integers)'],
+		doc: new op_doc$1(['x', 'shape (array of nonnegative integers)'],
 			['`x` reshaped to given `shape`'],
 			'reshapes `x` into given shape `shape`')
 	};
@@ -1333,7 +1488,7 @@
 		name: 'js_function',
 		type: 'control',
 		desc_function: __js_function__desc_func, 
-		doc: new op_doc(['...arguments'],
+		doc: new op_doc$1(['...arguments'],
 			['the outputs of the function applied to the arguments'],
 			'applies the function to the arguments, and returns the results')
 	};
@@ -1360,7 +1515,7 @@
 		name: 'get_collection',
 		type: 'control',
 		desc_function: __get_collection__desc_func,
-		doc: new op_doc(
+		doc: new op_doc$1(
 			['collection name, or list of names, as strings',
 				'...optional control edges'],
 			['list of tensors in the specified collections'],
@@ -1376,7 +1531,7 @@
 		name: 'convolution',
 		type: 'tensor',
 		desc_function: __convolution__desc_func,
-		doc: new op_doc(['x', 'filter', '(optional) stride', '(optional) padding'],
+		doc: new op_doc$1(['x', 'filter', '(optional) stride', '(optional) padding'],
 			['x convolved with filter'],
 			'convolves x with filter')
 	};
@@ -1418,6 +1573,7 @@
 		__reshape__primitive,
 		__js_function__primitive,
 		__get_collection__primitive,
+		...higherOrderPrimitives,
 	].reduce((a,p)=>Object.assign(a, {[p.name]: p}), {});
 
 	/*
@@ -1647,8 +1803,8 @@
 			inputNames = new Set(flatModule.input);
 		flatModule.nodes.forEach(node => {
 			if(inputNames.has(node.name)){return} // inputs already recieved traces
-			const fn = inputs => primitives[node.op]
-				.desc_function(tensorTrace, node, inputs, collections);
+			const fn = inputs => primitives[node.op].desc_function(
+				tensorTrace, node, inputs, collections, stageOneOut.modules);
 			try {
 				const fnOut = fn(node.input.map(ref => valueTrace[ref]));
 				Object.assign(valueTrace, fnOut);
