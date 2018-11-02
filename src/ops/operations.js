@@ -1,5 +1,6 @@
 import {constructors} from '../util/taffy_constructors.js'
 import {__convolution__desc_func} from './convolution.js'
+import {higherOrderPrimitives} from './higherOrder.js'
 
 const {op_doc, tensor_description, tensor_shape} = constructors
 
@@ -1174,5 +1175,6 @@ export const primitives = [
 	__reshape__primitive,
 	__js_function__primitive,
 	__get_collection__primitive,
+	...higherOrderPrimitives,
 ].reduce((a,p)=>Object.assign(a, {[p.name]: p}), {})
 

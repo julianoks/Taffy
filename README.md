@@ -3,9 +3,9 @@
 TODO
 - [x] taffy puller optional pruning
 - [x] convolution op
-- [ ] higher-order operations
-	- [ ] map
-	- [ ] fold/reduce
+- [x] higher-order operations
+	- [x] map
+	- [x] fold/reduce
 		- RNNs should be implemented as a fold/reduce that returns x, f(x), f(f(x)), ....
 - [x] standardize what description functions throw
 - [x] essential operations
