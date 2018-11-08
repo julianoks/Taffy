@@ -869,33 +869,6 @@
 
 	/*
 	---------------------------------
-	------------- scalar  -----------
-	---------------------------------
-	*/
-	function __scalar__desc_func(tensor_trace, node, inputs){
-		if(inputs.length < 1) throw({message: 'must take at least one input'})
-		if(isNaN(+inputs[0])) throw({message: 'first input must be a number'})
-		const num = +inputs[0],
-			dtype = typeof(inputs[1])==='string'? inputs[1] : 'float32',
-			shape = new tensor_shape$1([]),
-			out = new tensor_description$1(shape, dtype, node.name+':0', 'scalar',
-				[], {num:num,dtype:dtype}),
-			results = {[out.val_ref]: out};
-		Object.assign(tensor_trace, results);
-		return results
-	}
-
-	const __scalar__primitive = {
-		name: 'scalar',
-		type: 'tensor',
-		desc_function: __scalar__desc_func,
-		doc: new op_doc$1(['scalar value', '(optional) dtype'], ['a scalar'],
-			'produces a tensor scalar')
-	};
-
-
-	/*
-	---------------------------------
 	---------- get_tensor  ----------
 	---------------------------------
 	*/
@@ -913,6 +886,9 @@
 				'A tensor shape must be a vector of integers or ' +
 				'strings that are valid C identifiers.';
 			throw({message})
+		}
+		if(shape.shape.some(x=> typeof(x)===typeof(''))){
+			throw({message: 'Shape must not contain symbolic dimensions'})
 		}
 		const supported_fills = new Set(['ones', 'zeros',
 			'normal', 'truncated_normal']);
@@ -946,6 +922,32 @@
 
 	/*
 	---------------------------------
+	------------- scalar  -----------
+	---------------------------------
+	*/
+
+	function __scalar__desc_func(tensor_trace, node, inputs){
+		let [number, dtype] = inputs;
+		dtype = dtype || 'float32';
+		const shape = [];
+		if(isNaN(+number)){throw({message: 'First input must be a number'})}
+		if(typeof(dtype) !== typeof('')){
+			throw({message: 'Second input must be a string (or undefined)'})
+		}
+		return __get_tensor__desc_func(tensor_trace, node, [shape, number, dtype])
+	}
+
+	const __scalar__primitive = {
+		name: 'scalar',
+		type: 'control',
+		desc_function: __scalar__desc_func,
+		doc: new op_doc$1(['A number', '(optional) dtype'],
+			['a scalar tensor'], 'produces a tensor from a scalar')
+	};
+
+
+	/*
+	---------------------------------
 	----------- variable  -----------
 	---------------------------------
 	*/
@@ -955,6 +957,9 @@
 		}
 		let [tensor, collections] = inputs;
 		if(!isTensor$1(tensor)) throw({message: 'input #0 must be a tensor'})
+		if(tensor.shape.some(x=> typeof(x)===typeof(''))){
+			throw({message: 'Tensor must not contain symbolic dimensions'})
+		}
 		collections = collections || [];
 		collections = typeof(collections)===typeof('')? [collections] : collections;
 		if(!collections.every(s => typeof(s)===typeof(''))){
