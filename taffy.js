@@ -1538,6 +1538,53 @@
 
 	/*
 	---------------------------------
+	---------- batch_norm  ----------
+	---------------------------------
+	*/
+	function __batch_norm__desc_func(tensor_trace, node, inputs, coll_bins){
+		const tensor = inputs[0];
+		if(!isTensor$1(tensor)){throw({message: 'First input must be tensor'})}
+		if(tensor.shape.slice(1).some(x=> typeof(x)===typeof(''))){
+			throw({message: 'Tensor must not contain symbolic dimensions'+
+				' (except for first dimension)'})
+		}
+		const shape = [1, ...tensor.shape.slice(1)];
+		const dtype = tensor.dtype;
+		const newNode = ext =>  Object.assign({}, node, {name: node.name+ext});
+		const bins = ['trainable', 'batchNorm'];
+		const getValue = (name, fill) => {
+			const nodeInit = newNode(`/${name}/init`);
+			const nodeVar = newNode(`/${name}/variable`);
+			const init = Object.values(__get_tensor__desc_func(
+				tensor_trace, nodeInit, [shape, fill, dtype]))[0];
+			return Object.values(__variable__desc_func(
+				tensor_trace, nodeVar, [init, bins], coll_bins))[0]
+		};
+		const mean = getValue('mean', 0);
+		const variance = getValue('variance', 1);
+		const scale = getValue('scale', 1);
+		const offset = getValue('offset', 0);
+		// batch norm
+		const newShape = new tensor_shape$1(tensor.shape);
+		const valRefs = [tensor, mean, variance, scale, offset].map(t=>t.val_ref);
+		const out = new tensor_description$1(newShape, dtype, node.name+':0',
+			'batch_norm', valRefs, {});
+		const results = {[out.val_ref]: out};
+		Object.assign(tensor_trace, results);
+		return results
+	}
+
+	const __batch_norm__primitive = {
+		name: 'batch_norm',
+		type: 'tensor',
+		desc_function: __batch_norm__desc_func,
+		doc: new op_doc$1(['input tensor'], ['normalized tensor'],
+			'applies batch normalization to the input')
+	};
+
+
+	/*
+	---------------------------------
 	--------- convolution  ----------
 	---------------------------------
 	*/
@@ -1588,6 +1635,7 @@
 		__js_function__primitive,
 		__get_collection__primitive,
 		...higherOrderPrimitives,
+		__batch_norm__primitive,
 	].reduce((a,p)=>Object.assign(a, {[p.name]: p}), {});
 
 	/*
@@ -2001,6 +2049,13 @@
 		return `[${result}]`
 	}
 
+	function batchNormConversion(node){
+		let [x, ...rest] = node.input;
+		rest = rest.map(t => `${t}.gather(tf.zeros([${x}.shape[0]], 'int32'))`);
+		return `[tf.batchNormalization(${x}, ${rest.slice(0,2)},0.0001,`+
+			`${rest.slice(2)})]`
+	}
+
 	const opConversionMap = {
 		get_tensor: op_conversion_get_tensor,
 		placeholder: () => {throw('placeholder shouldn\'t have been called...')},
@@ -2015,7 +2070,6 @@
 		multiply: op_conversion_mul,
 		divide: node => `[tf.div(${node.input})]`,
 		subtract: node => `[tf.sub(${node.input})]`,
-		scalar: n => `[tf.scalar(${[+n.attr.num, stringify(n.attr.dtype)]})]`,
 		pow: op_conversion_protected_pow,
 		sqrt: node => `[tf.sqrt(${node.input[0]})]`,
 		softmax: node => `[tf.softmax(${node.input[0]})]`,
@@ -2032,6 +2086,7 @@
 		gather: n => `[tf.gather(${n.input.slice(0,2)},${n.attr.axis})]`,
 		reshape: n => `[tf.reshape(${n.input[0]},[${n.attr.shapeEncoding
 		.map(x => !isNaN(x)? x : n.input[0]+'.shape['+x+']')}])]`,
+		batch_norm: batchNormConversion,
 	};
 
 
@@ -2182,8 +2237,11 @@
 			outDesc = getOutDesc(unwrapped),
 			subgraphs = get_init_subgraphs(re_nodes, re_output, ['variable'],
 				s => s.slice(0,s.lastIndexOf('['))),
-			forwardFn = get_forward(unwrapped, re_nodes, inDesc,name_map,subgraphs),
-			passObj = o => `JSON.parse(${stringify(stringify(o))})`;
+			forwardFn = get_forward(unwrapped, re_nodes,inDesc,name_map,subgraphs),
+			passObj = o => `JSON.parse(${stringify(stringify(o))})`,
+			collections = Object.entries(unwrapped.stage_two.collections).reduce(
+				(acc,[k,v]) => Object.assign(acc,{[k]:Array.from(Object.keys(v))}),
+				{});
 		const fn_string = '(function(tfLib){"use_strict";' +
 
 			'try{this.tf = tfLib || tf;}' +
@@ -2191,6 +2249,7 @@
 			'"A tf library must be supplied or be available as a global")}' +
 
 			`this.implements_module = ${stringify(unwrapped.name)};` +
+			`this.collections = ${passObj(collections)};` +
 			`this.inherit_vars = ${inherit_vars};` +
 			`this.input_names = ${stringify(unwrapped.stage_two.input_names)};` +
 			`this.name_map = ${passObj(name_map)};` +

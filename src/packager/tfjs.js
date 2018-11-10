@@ -124,6 +124,13 @@ function convolutionWrapper(node){
 	return `[${result}]`
 }
 
+function batchNormConversion(node){
+	let [x, ...rest] = node.input
+	rest = rest.map(t => `${t}.gather(tf.zeros([${x}.shape[0]], 'int32'))`)
+	return `[tf.batchNormalization(${x}, ${rest.slice(0,2)},0.0001,`+
+		`${rest.slice(2)})]`
+}
+
 export const opConversionMap = {
 	get_tensor: op_conversion_get_tensor,
 	placeholder: () => {throw('placeholder shouldn\'t have been called...')},
@@ -138,7 +145,6 @@ export const opConversionMap = {
 	multiply: op_conversion_mul,
 	divide: node => `[tf.div(${node.input})]`,
 	subtract: node => `[tf.sub(${node.input})]`,
-	scalar: n => `[tf.scalar(${[+n.attr.num, stringify(n.attr.dtype)]})]`,
 	pow: op_conversion_protected_pow,
 	sqrt: node => `[tf.sqrt(${node.input[0]})]`,
 	softmax: node => `[tf.softmax(${node.input[0]})]`,
@@ -155,6 +161,7 @@ export const opConversionMap = {
 	gather: n => `[tf.gather(${n.input.slice(0,2)},${n.attr.axis})]`,
 	reshape: n => `[tf.reshape(${n.input[0]},[${n.attr.shapeEncoding
 		.map(x => !isNaN(x)? x : n.input[0]+'.shape['+x+']')}])]`,
+	batch_norm: batchNormConversion,
 }
 
 
@@ -305,8 +312,11 @@ export function unwrapped_to_constructor(unwrapped){
 		outDesc = getOutDesc(unwrapped),
 		subgraphs = get_init_subgraphs(re_nodes, re_output, ['variable'],
 			s => s.slice(0,s.lastIndexOf('['))),
-		forwardFn = get_forward(unwrapped, re_nodes, inDesc,name_map,subgraphs),
-		passObj = o => `JSON.parse(${stringify(stringify(o))})`
+		forwardFn = get_forward(unwrapped, re_nodes,inDesc,name_map,subgraphs),
+		passObj = o => `JSON.parse(${stringify(stringify(o))})`,
+		collections = Object.entries(unwrapped.stage_two.collections).reduce(
+			(acc,[k,v]) => Object.assign(acc,{[k]:Array.from(Object.keys(v))}),
+			{})
 	const fn_string = '(function(tfLib){"use_strict";' +
 
 		'try{this.tf = tfLib || tf;}' +
@@ -314,6 +324,7 @@ export function unwrapped_to_constructor(unwrapped){
 		'"A tf library must be supplied or be available as a global")}' +
 
 		`this.implements_module = ${stringify(unwrapped.name)};` +
+		`this.collections = ${passObj(collections)};` +
 		`this.inherit_vars = ${inherit_vars};` +
 		`this.input_names = ${stringify(unwrapped.stage_two.input_names)};` +
 		`this.name_map = ${passObj(name_map)};` +

@@ -1131,6 +1131,53 @@ const __get_collection__primitive = {
 
 /*
 ---------------------------------
+---------- batch_norm  ----------
+---------------------------------
+*/
+function __batch_norm__desc_func(tensor_trace, node, inputs, coll_bins){
+	const tensor = inputs[0]
+	if(!isTensor(tensor)){throw({message: 'First input must be tensor'})}
+	if(tensor.shape.slice(1).some(x=> typeof(x)===typeof(''))){
+		throw({message: 'Tensor must not contain symbolic dimensions'+
+			' (except for first dimension)'})
+	}
+	const shape = [1, ...tensor.shape.slice(1)]
+	const dtype = tensor.dtype
+	const newNode = ext =>  Object.assign({}, node, {name: node.name+ext})
+	const bins = ['trainable', 'batchNorm']
+	const getValue = (name, fill) => {
+		const nodeInit = newNode(`/${name}/init`)
+		const nodeVar = newNode(`/${name}/variable`)
+		const init = Object.values(__get_tensor__desc_func(
+			tensor_trace, nodeInit, [shape, fill, dtype]))[0]
+		return Object.values(__variable__desc_func(
+			tensor_trace, nodeVar, [init, bins], coll_bins))[0]
+	}
+	const mean = getValue('mean', 0)
+	const variance = getValue('variance', 1)
+	const scale = getValue('scale', 1)
+	const offset = getValue('offset', 0)
+	// batch norm
+	const newShape = new tensor_shape(tensor.shape)
+	const valRefs = [tensor, mean, variance, scale, offset].map(t=>t.val_ref)
+	const out = new tensor_description(newShape, dtype, node.name+':0',
+		'batch_norm', valRefs, {})
+	const results = {[out.val_ref]: out}
+	Object.assign(tensor_trace, results)
+	return results
+}
+
+const __batch_norm__primitive = {
+	name: 'batch_norm',
+	type: 'tensor',
+	desc_function: __batch_norm__desc_func,
+	doc: new op_doc(['input tensor'], ['normalized tensor'],
+		'applies batch normalization to the input')
+}
+
+
+/*
+---------------------------------
 --------- convolution  ----------
 ---------------------------------
 */
@@ -1181,5 +1228,6 @@ export const primitives = [
 	__js_function__primitive,
 	__get_collection__primitive,
 	...higherOrderPrimitives,
+	__batch_norm__primitive,
 ].reduce((a,p)=>Object.assign(a, {[p.name]: p}), {})
 
