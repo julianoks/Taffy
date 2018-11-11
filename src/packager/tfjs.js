@@ -134,7 +134,7 @@ function batchNormConversion(node){
 function gatherRowsConversion(node){
 	const [x, inds] = node.input
 	const positions = `tf.stack([tf.range(0,${inds}.shape[0])` +
-		`.cast(${inds}.dtype),inds],1)`
+		`.cast(${inds}.dtype),${inds}],1)`
 	return `[tf.gatherND(${x}, ${positions})]`
 }
 
