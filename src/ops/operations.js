@@ -1016,7 +1016,44 @@ const __gather__primitive = {
 	'takes slices from `x` along `axis` at the specified `indices`')
 }
 
+/*
+---------------------------------
+--------- gather_rows  ----------
+---------------------------------
+*/
+function __gather_rows__desc_func(tensor_trace, node, inputs){
+	if(inputs.length !== 2){
+		throw({message: 'must take two inputs'})
+	}
+	const [x, colls] = inputs
+	if(!(isTensor(x) && x.shape.length>=2)){
+		throw({message: 'first input must be a tensor of rank>=2'})
+	}
+	if(!(isTensor(colls) && colls.shape.length==1)){
+		throw({message: 'second input must be a tensor of '+
+			'rank 1 with dtype "int32"'})
+	}
+	if(x.shape[0] !== colls.shape[0]){
+		throw({message: 'first dimensions must match, '+
+			`(${x.shape[0]} != ${colls.shape[0]})`})
+	}
+	let shape = [x.shape[0], ...x.shape.slice(2)]
+	shape = new tensor_shape(shape)
+	const out = new tensor_description(shape, x.dtype, node.name+':0',
+		'gather_rows', [x.val_ref, colls.val_ref], {})
+	const results = {[out.val_ref]: out}
+	Object.assign(tensor_trace, results)
+	return results
+}
 
+const __gather_rows__primitive = {
+	name: 'gather_rows',
+	type: 'tensor',
+	desc_function: __gather_rows__desc_func,
+	doc: new op_doc(['x', 'indices (1d tensor with dtype "int32")'],
+		['tensor of slices from rows of `x` at the provided indices'],
+		'takes slices from rows of `x` along at the provided `indices`')
+}
 
 /*
 ---------------------------------
@@ -1229,5 +1266,6 @@ export const primitives = [
 	__get_collection__primitive,
 	...higherOrderPrimitives,
 	__batch_norm__primitive,
+	__gather_rows__primitive,
 ].reduce((a,p)=>Object.assign(a, {[p.name]: p}), {})
 

@@ -131,6 +131,13 @@ function batchNormConversion(node){
 		`${rest.slice(2)})]`
 }
 
+function gatherRowsConversion(node){
+	const [x, inds] = node.input
+	const positions = `tf.stack([tf.range(0,${inds}.shape[0])` +
+		`.cast(${inds}.dtype),inds],1)`
+	return `[tf.gatherND(${x}, ${positions})]`
+}
+
 export const opConversionMap = {
 	get_tensor: op_conversion_get_tensor,
 	placeholder: () => {throw('placeholder shouldn\'t have been called...')},
@@ -162,6 +169,7 @@ export const opConversionMap = {
 	reshape: n => `[tf.reshape(${n.input[0]},[${n.attr.shapeEncoding
 		.map(x => !isNaN(x)? x : n.input[0]+'.shape['+x+']')}])]`,
 	batch_norm: batchNormConversion,
+	gather_rows: gatherRowsConversion,
 }
 
 
