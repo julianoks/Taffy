@@ -2101,9 +2101,6 @@
 			`.cast(${inds}.dtype),${inds}],1)`
 		return `[tf.gatherND(${x}, ${positions})]`
 		*/
-		if(x.shape.length!==2){
-			throw({message: 'TFJS currently only supports gatherND on 2D inputs'})
-		}
 		const pos = `tf.range(0,${inds}.shape[0]).mul(${x}.shape[1])`+
 			`.cast(${inds}.dtype).add(${inds})`;
 		return `[${x}.flatten().gather(${pos})]`
