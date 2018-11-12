@@ -95,3 +95,37 @@ export function __convolution__desc_func(tensor_trace, node, inputs){
 	return results
 }
 
+
+
+const poolGenericDescFunc = opName => (tensor_trace, node, inputs) => {
+	if(inputs.length < 1) throw({message: 'must take at least one input'})
+	let [x, filterSize, stride, padding] = inputs
+	filterSize = filterSize || 2
+	stride = stride || 1
+	padding = padding || 'valid'
+	if(!(isTensor(x) && x.shape.length >= 3)){
+		throw({message: 'first input must be a tensor of rank 3 or greater'})
+	}
+	if(!(Number.isInteger(filterSize) && filterSize>0)){
+		throw({message: 'second input must be a positive integer'})
+	}
+	if(!(Number.isInteger(stride) && stride>0)){
+		throw({message: 'third input must be a positive integer'})
+	}
+	if(!(padding === 'same' || padding === 'valid')){
+		throw({message: 'fourth input must be "same" or "valid"'})
+	}
+	const vec = int => Array(x.shape.length).fill(int)
+	const dtype = x.dtype
+	const shape = getConvOutShape(x, vec(filterSize), vec(stride), padding)
+	const out = new tensor_description(shape, dtype, node.name+':0',
+		opName,
+		[x.val_ref],
+		{filterSize, stride, padding, shape: shape.shape})
+	const results = {[out.val_ref]: out}
+	Object.assign(tensor_trace, results)
+	return results
+}
+
+export const __max_pool__desc_func = poolGenericDescFunc('max_pool')
+export const __avg_pool__desc_func = poolGenericDescFunc('avg_pool')

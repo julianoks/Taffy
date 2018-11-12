@@ -143,6 +143,15 @@ function gatherRowsConversion(node){
 	return `[${x}.flatten().gather(${pos})]`
 }
 
+function poolingConversion(opName, node){
+	const x = node.input[0]
+	const {filterSize, stride, padding, shape} = node.attr
+	if(!(shape.length == 3 || shape.length == 4)){
+		throw('Pooling only supported for inputs of rank 3 or 4.')
+	}
+	return `[tf.${opName}(${x},${filterSize},${stride},${padding})]`
+}
+
 export const opConversionMap = {
 	get_tensor: op_conversion_get_tensor,
 	placeholder: () => {throw('placeholder shouldn\'t have been called...')},
@@ -175,6 +184,8 @@ export const opConversionMap = {
 		.map(x => typeof(x)!=typeof('')? x : n.input[0]+'.shape['+x+']')}])]`,
 	batch_norm: batchNormConversion,
 	gather_rows: gatherRowsConversion,
+	max_pool: n => poolingConversion('maxPool', n),
+	avg_pool: n => poolingConversion('avgPool', n),
 }
 
 

@@ -245,6 +245,41 @@
 		return results
 	}
 
+
+
+	const poolGenericDescFunc = opName => (tensor_trace, node, inputs) => {
+		if(inputs.length < 1) throw({message: 'must take at least one input'})
+		let [x, filterSize, stride, padding] = inputs;
+		filterSize = filterSize || 2;
+		stride = stride || 1;
+		padding = padding || 'valid';
+		if(!(isTensor(x) && x.shape.length >= 3)){
+			throw({message: 'first input must be a tensor of rank 3 or greater'})
+		}
+		if(!(Number.isInteger(filterSize) && filterSize>0)){
+			throw({message: 'second input must be a positive integer'})
+		}
+		if(!(Number.isInteger(stride) && stride>0)){
+			throw({message: 'third input must be a positive integer'})
+		}
+		if(!(padding === 'same' || padding === 'valid')){
+			throw({message: 'fourth input must be "same" or "valid"'})
+		}
+		const vec = int => Array(x.shape.length).fill(int);
+		const dtype = x.dtype;
+		const shape = getConvOutShape(x, vec(filterSize), vec(stride), padding);
+		const out = new tensor_description(shape, dtype, node.name+':0',
+			opName,
+			[x.val_ref],
+			{filterSize, stride, padding, shape: shape.shape});
+		const results = {[out.val_ref]: out};
+		Object.assign(tensor_trace, results);
+		return results
+	};
+
+	const __max_pool__desc_func = poolGenericDescFunc('max_pool');
+	const __avg_pool__desc_func = poolGenericDescFunc('avg_pool');
+
 	const {op_doc} = constructors;
 
 	function executeModule(moduleName, inputs, parentArgs, prefix){
@@ -1634,6 +1669,37 @@
 			'convolves x with filter')
 	};
 
+	/*
+	---------------------------------
+	----------- max_pool  -----------
+	---------------------------------
+	*/
+	const __max_pool__primitive = {
+		name: 'max_pool',
+		type: 'tensor',
+		desc_function: __max_pool__desc_func,
+		doc: new op_doc$1(['x', '(optional) filterSize',
+			'(optional) stride', '(optional) padding'],
+		['max pooling of x'],
+		'applies max pooling to x')
+	};
+
+	/*
+	---------------------------------
+	----------- avg_pool  -----------
+	---------------------------------
+	*/
+	const __avg_pool__primitive = {
+		name: 'avg_pool',
+		type: 'tensor',
+		desc_function: __avg_pool__desc_func,
+		doc: new op_doc$1(['x', '(optional) filterSize',
+			'(optional) stride', '(optional) padding'],
+		['average pooling of x'],
+		'applies average pooling to x')
+	};
+
+
 	const primitives = [
 		__placeholder__primitive,
 		__relu__primitive,
@@ -1674,6 +1740,8 @@
 		...higherOrderPrimitives,
 		__batch_norm__primitive,
 		__gather_rows__primitive,
+		__max_pool__primitive,
+		__avg_pool__primitive,
 	].reduce((a,p)=>Object.assign(a, {[p.name]: p}), {});
 
 	/*
@@ -2106,6 +2174,15 @@
 		return `[${x}.flatten().gather(${pos})]`
 	}
 
+	function poolingConversion(opName, node){
+		const x = node.input[0];
+		const {filterSize, stride, padding, shape} = node.attr;
+		if(!(shape.length == 3 || shape.length == 4)){
+			throw('Pooling only supported for inputs of rank 3 or 4.')
+		}
+		return `[tf.${opName}(${x},${filterSize},${stride},${padding})]`
+	}
+
 	const opConversionMap = {
 		get_tensor: op_conversion_get_tensor,
 		placeholder: () => {throw('placeholder shouldn\'t have been called...')},
@@ -2138,6 +2215,8 @@
 		.map(x => typeof(x)!=typeof('')? x : n.input[0]+'.shape['+x+']')}])]`,
 		batch_norm: batchNormConversion,
 		gather_rows: gatherRowsConversion,
+		max_pool: n => poolingConversion('maxPool', n),
+		avg_pool: n => poolingConversion('avgPool', n),
 	};
 
 

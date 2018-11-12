@@ -1,5 +1,5 @@
 import {constructors} from '../util/taffy_constructors.js'
-import {__convolution__desc_func} from './convolution.js'
+import * as Convolution from './convolution.js'
 import {higherOrderPrimitives} from './higherOrder.js'
 
 const {op_doc, tensor_description, tensor_shape} = constructors
@@ -1221,11 +1221,42 @@ const __batch_norm__primitive = {
 const __convolution__primitive = {
 	name: 'convolution',
 	type: 'tensor',
-	desc_function: __convolution__desc_func,
+	desc_function: Convolution.__convolution__desc_func,
 	doc: new op_doc(['x', 'filter', '(optional) stride', '(optional) padding'],
 		['x convolved with filter'],
 		'convolves x with filter')
 }
+
+/*
+---------------------------------
+----------- max_pool  -----------
+---------------------------------
+*/
+const __max_pool__primitive = {
+	name: 'max_pool',
+	type: 'tensor',
+	desc_function: Convolution.__max_pool__desc_func,
+	doc: new op_doc(['x', '(optional) filterSize',
+		'(optional) stride', '(optional) padding'],
+	['max pooling of x'],
+	'applies max pooling to x')
+}
+
+/*
+---------------------------------
+----------- avg_pool  -----------
+---------------------------------
+*/
+const __avg_pool__primitive = {
+	name: 'avg_pool',
+	type: 'tensor',
+	desc_function: Convolution.__avg_pool__desc_func,
+	doc: new op_doc(['x', '(optional) filterSize',
+		'(optional) stride', '(optional) padding'],
+	['average pooling of x'],
+	'applies average pooling to x')
+}
+
 
 export const primitives = [
 	__placeholder__primitive,
@@ -1267,5 +1298,7 @@ export const primitives = [
 	...higherOrderPrimitives,
 	__batch_norm__primitive,
 	__gather_rows__primitive,
+	__max_pool__primitive,
+	__avg_pool__primitive,
 ].reduce((a,p)=>Object.assign(a, {[p.name]: p}), {})
 
