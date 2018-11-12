@@ -267,7 +267,7 @@
 		}
 		const vec = int => Array(x.shape.length).fill(int);
 		const dtype = x.dtype;
-		const shape = getConvOutShape(x, x.slice(-1),
+		const shape = getConvOutShape(x, x.shape.slice(-1),
 			vec(filterSize), vec(stride), padding);
 		const out = new tensor_description(shape, dtype, node.name+':0',
 			opName,
