@@ -2135,7 +2135,7 @@
 		convolution: convolutionWrapper,
 		gather: n => `[tf.gather(${n.input.slice(0,2)},${n.attr.axis})]`,
 		reshape: n => `[tf.reshape(${n.input[0]},[${n.attr.shapeEncoding
-		.map(x => !isNaN(x)? x : n.input[0]+'.shape['+x+']')}])]`,
+		.map(x => typeof(x)!=typeof('')? x : n.input[0]+'.shape['+x+']')}])]`,
 		batch_norm: batchNormConversion,
 		gather_rows: gatherRowsConversion,
 	};
