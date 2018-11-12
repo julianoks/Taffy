@@ -2175,13 +2175,13 @@
 		return `[${x}.flatten().gather(${pos})]`
 	}
 
-	function poolingConversion(opName, node){
+	function poolingConversion(op, node){
 		const x = node.input[0];
 		const {filterSize, stride, padding, shape} = node.attr;
 		if(!(shape.length == 3 || shape.length == 4)){
 			throw('Pooling only supported for inputs of rank 3 or 4.')
 		}
-		return `[tf.${opName}(${x},${filterSize},${stride},${padding})]`
+		return `[tf.${op}(${x},${filterSize},${stride},${stringify(padding)})]`
 	}
 
 	const opConversionMap = {
