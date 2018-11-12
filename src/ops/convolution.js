@@ -12,11 +12,9 @@ function strideToArray(stride, filter){
 	return Array(nDims).fill(stride)
 }
 
-function getConvOutShape(x, filter, stride, padding){
-	const batchSize = x.shape.slice(0, 1),
-		outChannels = filter.shape.slice(-1),
-		middleInDims = x.shape.slice(1, -1),
-		filterInDims = filter.shape.slice(1, -1)
+function getConvOutShape(x, outChannels, filterInDims, stride, padding){
+	const batchSize = x.shape.slice(0, 1)
+	const middleInDims = x.shape.slice(1, -1)
 	let middleOutDims = []
 	if(padding === 'same'){
 		middleOutDims = zip(middleInDims, stride)
@@ -85,7 +83,9 @@ export function __convolution__desc_func(tensor_trace, node, inputs){
 		stride = strideToArray(inputs[2] || 1, filter),
 		padding = inputs[3] || 'same'
 	const dtype = x.dtype,
-		shape = getConvOutShape(x, filter, stride, padding),
+		shape = getConvOutShape(x,
+			filter.shape.slice(-1), filter.shape.slice(1, -1),
+			stride, padding),
 		out = new tensor_description(shape, dtype, node.name+':0',
 			'convolution',
 			[x.val_ref, filter.val_ref],
@@ -117,7 +117,8 @@ const poolGenericDescFunc = opName => (tensor_trace, node, inputs) => {
 	}
 	const vec = int => Array(x.shape.length).fill(int)
 	const dtype = x.dtype
-	const shape = getConvOutShape(x, vec(filterSize), vec(stride), padding)
+	const shape = getConvOutShape(x, x.slice(-1),
+		vec(filterSize), vec(stride), padding)
 	const out = new tensor_description(shape, dtype, node.name+':0',
 		opName,
 		[x.val_ref],
