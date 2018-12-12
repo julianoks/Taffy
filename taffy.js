@@ -2419,18 +2419,6 @@
 			.reduce((acc,[k,v]) => Object.assign(acc, {[k]: mapInputDesc(v)}),{})
 	}
 
-	function getOutDesc$1(unwrapped){
-		const tensor_trace = unwrapped.stage_two.tensor_trace,
-			simple_tdesc = ({shape, dtype}) =>
-				({dtype:dtype, shape: convert_shape$1(shape)}),
-			{output_names} = unwrapped;
-		return unwrapped.output
-			.reduce((acc,k,i) =>
-				Object.assign(acc,
-					{[output_names[i]]: simple_tdesc(tensor_trace[k])}),
-			{})
-	}
-
 	function op_conversion_get_tensor$1(node){
 		const {shape,fill,dtype} = node.attr;
 		const s_shape = convert_shape$1(shape.shape);
@@ -2461,7 +2449,8 @@
 		}
 		let result = '';
 		if(ND === 1){
-			result = `tf.nn.conv1d(${x},${filter},${stride[0]},${stringify$1(padding)})`;
+	        result = `tf.nn.conv1d(${x},${filter},` +
+	            `${stride[0]},${stringify$1(padding)})`;
 		}else if(ND === 2){
 			result = `tf.nn.conv2d(${x},${filter},` +
 				`${stringify$1(stride)},${stringify$1(padding)})`;
@@ -2495,6 +2484,12 @@
 		return `[tf.${tfOp}(${x},${filterSize},${stride},${stringify$1(padding)})]`
 	}
 
+	function convertPow(node){
+	    const dtype = 'float32'; // TODO: pick higher of the dtypes
+	    const casted = node.input.map(s => `tf.cast(${s}, ${dtype})`);
+	    return `[tf.pow(${casted})]`
+	}
+
 	const unreffedOpConversionMap = {
 		get_tensor: op_conversion_get_tensor$1,
 		placeholder: () => {throw('placeholder shouldn\'t have been called...')},
@@ -2508,7 +2503,7 @@
 		multiply: node => `[${node.input.join(' * ')}]`,
 		divide: node => `[tf.div(${node.input})]`,
 		subtract: node => `[tf.subtract(${node.input})]`,
-		pow: node => `[tf.pow(${node.input})]`,
+		pow: convertPow,
 		sqrt: node => `[tf.sqrt(${node.input[0]})]`,
 		softmax: node => `[tf.nn.softmax(${node.input[0]})]`,
 		log: node => `[tf.math.log(${node.input[0]}+1e-8)]`,
@@ -2598,7 +2593,7 @@
 	    const body = [
 	        'if isinstance(recieved, dict):',
 	        '\tingested = recieved',
-	        'else if isinstance(recieved, list) or isinstance(recieved, tuple):',
+	        'elif isinstance(recieved, list) or isinstance(recieved, tuple):',
 	        `\tinput_names = ${stringify$1(input_names)}`,
 	        '\tingested = {k:v for k,v in zip(input_names, recieved)}',
 	        'else: raise ValueError("Input is not a dict, tuple, or list")',
@@ -2612,7 +2607,6 @@
 	function unwrapped_to_factory(unwrapped){
 	    const {nodes, output, name} = unwrapped;
 	    const inDesc = getInDesc$1(unwrapped);
-	    const outDesc = getOutDesc$1(unwrapped);
 	    const subgraphs = get_init_subgraphs(nodes, output, ['variable']);
 	    const init = make_init_fn(nodes, subgraphs);
 	    const call = get_call_fn(unwrapped, nodes, inDesc, subgraphs);
