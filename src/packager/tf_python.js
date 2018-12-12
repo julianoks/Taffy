@@ -155,8 +155,8 @@ function make_init_fn(nodes, subgraphs){
             .map(s => `"${s}": graph[${s}][0]`)
             .join(',')
         +'}'
-    const body = (preamble + main + [assign]).map(s => `\t${s}`)
-    const lines = ['def __init__(self, tf):'] + body
+    const body = [...preamble, ...main, assign].map(s => `\t${s}`)
+    const lines = ['def __init__(self, tf):', ...body]
     return lines
 }
 
@@ -173,8 +173,8 @@ function get_call_fn(unwrapped, nodes, inDesc, subgraphs){
             `${convert_ref(name_map, unwrapped.output[i])}`)
         .join(',')
     const return_statement = `return {${return_value_inner}}`
-	const body = (preamble + main + [return_statement]).map(s => `\t${s}`)
-    const lines = ['def __call__(self, inputs):'] + body
+	const body = [...preamble, ...main, return_statement].map(s => `\t${s}`)
+    const lines = ['def __call__(self, inputs):', ...body]
 	return lines
 }
 
