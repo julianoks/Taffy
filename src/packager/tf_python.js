@@ -53,9 +53,15 @@ function convolutionWrapper(node){
 	if(!availConvs.has(ND)){
 		throw(`${ND}D convolution not yet supported, ` +
 			`only (${[...availConvs]})D supported`)
-	}
-	const result = `tf.nn.convolution(${x}, ${filter}, ` +
-        `${convertTFStride(stride)}, ${stringify(tfPad)})`
+    }
+    let result = ''
+    if(ND == 1){
+        result = `tf.nn.conv1d(${x}, ${filter}, ` +
+            `${stride[0]}, ${stringify(tfPad)})`
+    } else {
+        result = `tf.nn.conv${ND}d(${x}, ${filter}, ` +
+            `${convertTFStride(stride)}, ${stringify(tfPad)})`
+    }
 	return `[${result}]`
 }
 
@@ -77,11 +83,12 @@ function poolingConversion(op, node){
     const {filterSize, stride, padding, shape} = node.attr
     const tfPad = typeof(padding)==typeof('')? padding.toUpperCase() : padding
     const tfStride = convertTFStride(Array(shape.length-2).fill(stride))
+    const tfFilter = convertTFStride(Array(shape.length-2).fill(filterSize))
 	if(!(shape.length == 4 || shape.length == 5)){
 		throw('Pooling only supported for inputs of rank 4 or 5.')
     }
     const tfOp = shape.length == 5? `${op}3d` : op
-	return `[tf.${tfOp}(${x},${filterSize},${tfStride},${stringify(tfPad)})]`
+	return `[tf.nn.${tfOp}(${x},${tfFilter},${tfStride},${stringify(tfPad)})]`
 }
 
 function convertPow(node){
