@@ -2540,7 +2540,7 @@
 
 	function make_init_fn(nodes, subgraphs){
 	    const {init_deps, init_nodes} = subgraphs;
-		const varConversion = node => `[tf.Variable(${node.input[0]})]`;
+		const varConversion = n => `[tf.Variable(${convert_ref$1(n.input[0])})]`;
 	    const overriddenOps = Object.assign({}, opConversionMap$1, 
 	        {variable: varConversion});
 	    const preamble = ['self.tf = tf', 'graph = {}'];

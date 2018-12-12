@@ -142,7 +142,7 @@ export const opConversionMap = Object.entries(unreffedOpConversionMap)
 
 function make_init_fn(nodes, subgraphs){
     const {init_deps, init_nodes} = subgraphs
-	const varConversion = node => `[tf.Variable(${node.input[0]})]`
+	const varConversion = n => `[tf.Variable(${convert_ref(n.input[0])})]`
     const overriddenOps = Object.assign({}, opConversionMap, 
         {variable: varConversion})
     const preamble = ['self.tf = tf', 'graph = {}']
