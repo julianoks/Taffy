@@ -2559,9 +2559,11 @@
 	}
 
 	function get_call_fn(unwrapped, nodes, inDesc, subgraphs){
+	    const ingest = 'ingested = self.ingest_input(inputs)';
 	    const inputAcquisition = Object.keys(inDesc)
-	        .map(k => `graph['${k}'] = [inputs["${k}"]]`);
-	    const preamble = ['tf = self.tf', 'graph = {}', inputAcquisition];
+	        .map(k => `graph['${k}'] = [ingested["${k}"]]`);
+	    const preamble = ['tf = self.tf', 'graph = {}',
+	        ingest, ...inputAcquisition];
 		const main = nodes
 	        .filter(n => n.op !== 'placeholder')
 	        .filter(n => subgraphs.forward.has(n.name))
@@ -2576,12 +2578,35 @@
 		return lines
 	}
 
-	function makePythonClass(name, init, call){
+	function makePythonClass(name, init, call, ingest_input){
 	    const coalesce = lines => lines.map(s => `\t${s}`).join('\n');
 	    const classStr = `class ${name}:\n`
 	        + coalesce(init) + '\n'
-	        + coalesce(call) + '\n';
+	        + coalesce(call) + '\n'
+	        + coalesce(ingest_input) + '\n';
 	    return classStr
+	}
+
+	function make_ingest_input(inDesc){
+	    const unnamedPrefix = 'INPUT_';
+	    const intFromUnnamed = s => +s.slice(unnamedPrefix.length);
+	    const allUnnamed = arr => arr.every(s => s.startsWith(unnamedPrefix)) && 
+	        arr.map(intFromUnnamed).every(n => Number.isInteger(n));
+	    const input_names = Object.keys(inDesc)
+	        .sort((a,b) => (allUnnamed([a,b])?
+	            intFromUnnamed(a)<intFromUnnamed(b) : a<b)? -1 : 1);
+	    const body = [
+	        'if isinstance(recieved, dict):',
+	        '\tingested = recieved',
+	        'else if isinstance(recieved, list) or isinstance(recieved, tuple):',
+	        `\tinput_names = ${stringify$1(input_names)}`,
+	        '\tingested = {k:v for k,v in zip(input_names, recieved)}',
+	        'else: raise ValueError("Input is not a dict, tuple, or list")',
+	        'return ingested'
+	    ];
+	    const lines = ['def ingest_input(self, recieved, check=True):',
+	        ...body.map(s => `\t${s}`)];
+	    return lines
 	}
 
 	function unwrapped_to_factory(unwrapped){
@@ -2591,7 +2616,8 @@
 	    const subgraphs = get_init_subgraphs(nodes, output, ['variable']);
 	    const init = make_init_fn(nodes, subgraphs);
 	    const call = get_call_fn(unwrapped, nodes, inDesc, subgraphs);
-	    return makePythonClass(name, init, call)
+	    const ingest_input = make_ingest_input(inDesc);
+	    return makePythonClass(name, init, call, ingest_input)
 	}
 
 	const stages = {
