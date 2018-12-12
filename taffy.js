@@ -2560,7 +2560,7 @@
 
 	function get_call_fn(unwrapped, nodes, inDesc, subgraphs){
 	    const inputAcquisition = Object.keys(inDesc)
-	        .map(k => `graph[${name_map[k]}] = [inputs["${k}"]]`);
+	        .map(k => `graph[${k}] = [inputs["${k}"]]`);
 	    const preamble = ['tf = self.tf', 'graph = {}', inputAcquisition];
 		const main = nodes
 	        .filter(n => n.op !== 'placeholder')
@@ -2568,7 +2568,7 @@
 	        .map(n => `graph[${n.name}] = ${opConversionMap$1[n.op](n)};`);
 	    const return_value_inner = unwrapped.output_names
 	        .map((name,i) => `"${name}":` +
-	            `${convert_ref$1(name_map, unwrapped.output[i])}`)
+	            `${convert_ref$1(unwrapped.output[i])}`)
 	        .join(',');
 	    const return_statement = `return {${return_value_inner}}`;
 		const body = [...preamble, ...main, return_statement].map(s => `\t${s}`);
