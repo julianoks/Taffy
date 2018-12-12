@@ -26,7 +26,9 @@ function op_conversion_get_tensor(node){
 	const s_shape = convert_shape(shape.shape)
 	const s_dtype = stringify(dtype)
 	let out = ''
-	if(fill.type == 'scalar') out = `tf.fill(${s_shape},${fill.val},${s_dtype})`
+	if(fill.type == 'scalar'){
+        out = `tf.cast(tf.fill(${s_shape},${fill.val}), ${s_dtype})`
+    }
 	else if(fill.type == 'symbol'){
 		out = ({
 			'ones': 	`tf.ones(${s_shape},${s_dtype})`,

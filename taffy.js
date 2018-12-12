@@ -2424,7 +2424,9 @@
 		const s_shape = convert_shape$1(shape.shape);
 		const s_dtype = stringify$1(dtype);
 		let out = '';
-		if(fill.type == 'scalar') out = `tf.fill(${s_shape},${fill.val},${s_dtype})`;
+		if(fill.type == 'scalar'){
+	        out = `tf.cast(tf.fill(${s_shape},${fill.val}), ${s_dtype})`;
+	    }
 		else if(fill.type == 'symbol'){
 			out = ({
 				'ones': 	`tf.ones(${s_shape},${s_dtype})`,
