@@ -87,7 +87,7 @@ function poolingConversion(op, node){
 }
 
 function convertPow(node){
-    const dtype = 'float32' // TODO: pick higher of the dtypes
+    const dtype = `${node.input[0]}.dtype` // TODO: pick higher of the dtypes
     const casted = node.input.map(s => `tf.cast(${s}, ${dtype})`)
     return `[tf.pow(${casted})]`
 }
