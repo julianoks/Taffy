@@ -2440,6 +2440,8 @@
 		return `[${out}]`
 	}
 
+	const convertTFStride = arr => stringify$1([1, ...arr, 1]);
+
 	function convolutionWrapper$1(node){
 		const [x, filter] = node.input;
 	    const {stride, padding, shape} = node.attr;
@@ -2450,17 +2452,8 @@
 			throw(`${ND}D convolution not yet supported, ` +
 				`only (${[...availConvs]})D supported`)
 		}
-		let result = '';
-		if(ND === 1){
-	        result = `tf.nn.conv1d(${x},${filter},` +
-	            `${stride[0]},${stringify$1(tfPad)})`;
-		}else if(ND === 2){
-			result = `tf.nn.conv2d(${x},${filter},` +
-				`${stringify$1(stride)},${stringify$1(tfPad)})`;
-		}else if(ND === 3){
-			result = `tf.nn.conv3d(${x},${filter},` +
-				`${stringify$1(stride)},${stringify$1(tfPad)})`;
-		}
+		const result = `tf.nn.convolution(${x}, ${filter}, ` +
+	        `${convertTFStride(stride)}, ${stringify$1(tfPad)})`;
 		return `[${result}]`
 	}
 
@@ -2481,11 +2474,12 @@
 		const x = node.input[0];
 	    const {filterSize, stride, padding, shape} = node.attr;
 	    const tfPad = typeof(padding)==typeof('')? padding.toUpperCase() : padding;
+	    const tfStride = convertTFStride(stride);
 		if(!(shape.length == 4 || shape.length == 5)){
 			throw('Pooling only supported for inputs of rank 4 or 5.')
 	    }
 	    const tfOp = shape.length == 5? `${op}3d` : op;
-		return `[tf.${tfOp}(${x},${filterSize},${stride},${stringify$1(tfPad)})]`
+		return `[tf.${tfOp}(${x},${filterSize},${tfStride},${stringify$1(tfPad)})]`
 	}
 
 	function convertPow(node){
