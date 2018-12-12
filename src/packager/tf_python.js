@@ -5,7 +5,7 @@ const stringify = JSON.stringify
 function convert_ref(ref){
     const idx = ref.lastIndexOf(':')
     const node = ref.slice(0,idx)
-	return `graph[${node}][${ref.slice(idx+1)}]`
+	return `graph['${node}'][${ref.slice(idx+1)}]`
 }
 
 function convert_shape(shape){
@@ -149,10 +149,10 @@ function make_init_fn(nodes, subgraphs){
 	const main = nodes
         .filter(n => n.op !== 'placeholder')
         .filter(n => init_deps.has(n.name))
-        .map(n => `graph[${n.name}] = ${overriddenOps[n.op](n)}`)
+        .map(n => `graph['${n.name}'] = ${overriddenOps[n.op](n)}`)
     const assign = 'self.variables = {'+
         init_nodes
-            .map(s => `"${s}": graph[${s}][0]`)
+            .map(s => `"${s}": graph['${s}'][0]`)
             .join(',')
         +'}'
     const body = [...preamble, ...main, assign].map(s => `\t${s}`)
@@ -162,12 +162,12 @@ function make_init_fn(nodes, subgraphs){
 
 function get_call_fn(unwrapped, nodes, inDesc, subgraphs){
     const inputAcquisition = Object.keys(inDesc)
-        .map(k => `graph[${k}] = [inputs["${k}"]]`)
+        .map(k => `graph['${k}'] = [inputs["${k}"]]`)
     const preamble = ['tf = self.tf', 'graph = {}', inputAcquisition]
 	const main = nodes
         .filter(n => n.op !== 'placeholder')
         .filter(n => subgraphs.forward.has(n.name))
-        .map(n => `graph[${n.name}] = ${opConversionMap[n.op](n)};`)
+        .map(n => `graph['${n.name}'] = ${opConversionMap[n.op](n)}`)
     const return_value_inner = unwrapped.output_names
         .map((name,i) => `"${name}":` +
             `${convert_ref(unwrapped.output[i])}`)

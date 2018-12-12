@@ -2403,7 +2403,7 @@
 	function convert_ref$1(ref){
 	    const idx = ref.lastIndexOf(':');
 	    const node = ref.slice(0,idx);
-		return `graph[${node}][${ref.slice(idx+1)}]`
+		return `graph['${node}'][${ref.slice(idx+1)}]`
 	}
 
 	function convert_shape$1(shape){
@@ -2547,10 +2547,10 @@
 		const main = nodes
 	        .filter(n => n.op !== 'placeholder')
 	        .filter(n => init_deps.has(n.name))
-	        .map(n => `graph[${n.name}] = ${overriddenOps[n.op](n)}`);
+	        .map(n => `graph['${n.name}'] = ${overriddenOps[n.op](n)}`);
 	    const assign = 'self.variables = {'+
 	        init_nodes
-	            .map(s => `"${s}": graph[${s}][0]`)
+	            .map(s => `"${s}": graph['${s}'][0]`)
 	            .join(',')
 	        +'}';
 	    const body = [...preamble, ...main, assign].map(s => `\t${s}`);
@@ -2560,12 +2560,12 @@
 
 	function get_call_fn(unwrapped, nodes, inDesc, subgraphs){
 	    const inputAcquisition = Object.keys(inDesc)
-	        .map(k => `graph[${k}] = [inputs["${k}"]]`);
+	        .map(k => `graph['${k}'] = [inputs["${k}"]]`);
 	    const preamble = ['tf = self.tf', 'graph = {}', inputAcquisition];
 		const main = nodes
 	        .filter(n => n.op !== 'placeholder')
 	        .filter(n => subgraphs.forward.has(n.name))
-	        .map(n => `graph[${n.name}] = ${opConversionMap$1[n.op](n)};`);
+	        .map(n => `graph['${n.name}'] = ${opConversionMap$1[n.op](n)}`);
 	    const return_value_inner = unwrapped.output_names
 	        .map((name,i) => `"${name}":` +
 	            `${convert_ref$1(unwrapped.output[i])}`)
