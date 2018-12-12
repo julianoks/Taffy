@@ -44,7 +44,8 @@ function op_conversion_get_tensor(node){
 
 function convolutionWrapper(node){
 	const [x, filter] = node.input
-	const {stride, padding, shape} = node.attr
+    const {stride, padding, shape} = node.attr
+    const tfPad = typeof(padding)==typeof('')? padding.toUpperCase() : padding
 	const ND = shape.length - 2
 	const availConvs = new Set([1, 2, 3])
 	if(!availConvs.has(ND)){
@@ -54,13 +55,13 @@ function convolutionWrapper(node){
 	let result = ''
 	if(ND === 1){
         result = `tf.nn.conv1d(${x},${filter},` +
-            `${stride[0]},${stringify(padding)})`
+            `${stride[0]},${stringify(tfPad)})`
 	}else if(ND === 2){
 		result = `tf.nn.conv2d(${x},${filter},` +
-			`${stringify(stride)},${stringify(padding)})`
+			`${stringify(stride)},${stringify(tfPad)})`
 	}else if(ND === 3){
 		result = `tf.nn.conv3d(${x},${filter},` +
-			`${stringify(stride)},${stringify(padding)})`
+			`${stringify(stride)},${stringify(tfPad)})`
 	}
 	return `[${result}]`
 }
@@ -81,11 +82,12 @@ function poolingConversion(op, node){
     // `op` is 'max_pool' or 'avg_pool'
 	const x = node.input[0]
     const {filterSize, stride, padding, shape} = node.attr
+    const tfPad = typeof(padding)==typeof('')? padding.toUpperCase() : padding
 	if(!(shape.length == 4 || shape.length == 5)){
 		throw('Pooling only supported for inputs of rank 4 or 5.')
     }
     const tfOp = shape.length == 5? `${op}3d` : op
-	return `[tf.${tfOp}(${x},${filterSize},${stride},${stringify(padding)})]`
+	return `[tf.${tfOp}(${x},${filterSize},${stride},${stringify(tfPad)})]`
 }
 
 function convertPow(node){
