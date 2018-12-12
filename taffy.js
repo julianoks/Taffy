@@ -2441,8 +2441,8 @@
 			out = ({
 				'ones': 	`tf.ones(${s_shape},${s_dtype})`,
 				'zeros': 	`tf.zeros(${s_shape},${s_dtype})`,
-				'normal': 	`tf.randomNormal(${s_shape},0,1,${s_dtype})`,
-				'truncated_normal': `tf.truncatedNormal(${s_shape},0,1,${s_dtype})`
+				'normal': 	`tf.random_normal(${s_shape},0,1,${s_dtype})`,
+				'truncated_normal': `tf.truncated_normal(${s_shape},0,1,${s_dtype})`
 			})[fill.symbol];
 			if(out===undefined) throw('Unsupported fill symbol')
 		}
