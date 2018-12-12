@@ -65,7 +65,7 @@ function convolutionWrapper(node){
 
 function batchNormConversion(node){
     return `[tf.nn.batch_normalization(${node.input.slice(0,3)},`
-        + `${node.input.slice(3,5).reverse()}, 1e-4)]`
+        + `${node.input.slice(3,5).reverse()}, tf.constant(1e-4))]`
 }
 
 function gatherRowsConversion(node){
@@ -108,7 +108,7 @@ const unreffedOpConversionMap = {
 	pow: convertPow,
 	sqrt: node => `[tf.sqrt(${node.input[0]})]`,
 	softmax: node => `[tf.nn.softmax(${node.input[0]})]`,
-	log: node => `[tf.math.log(${node.input[0]}+1e-8)]`,
+	log: node => `[tf.math.log(${node.input[0]}+tf.constant(1e-8))]`,
     reduce_sum: n => `[tf.reduce_sum(${n.input[0]}, `+
         `axis=${stringify(n.attr.axis)})]`,
     reduce_avg: node => `[tf.reduce_mean(${node.input[0]}, `+
