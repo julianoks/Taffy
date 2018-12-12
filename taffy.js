@@ -2474,7 +2474,7 @@
 		const x = node.input[0];
 	    const {filterSize, stride, padding, shape} = node.attr;
 	    const tfPad = typeof(padding)==typeof('')? padding.toUpperCase() : padding;
-	    const tfStride = convertTFStride(stride);
+	    const tfStride = convertTFStride(Array(shape.length-2).fill(stride));
 		if(!(shape.length == 4 || shape.length == 5)){
 			throw('Pooling only supported for inputs of rank 4 or 5.')
 	    }
