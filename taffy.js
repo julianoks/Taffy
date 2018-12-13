@@ -212,7 +212,7 @@
 					throw({message})
 				}
 			} else if(Array.isArray(inputs[2])){
-				if(inputs[2].length !== (inputs[0].length - 2)){
+				if(inputs[2].shape.length !== (inputs[0].shape.length - 2)){
 					throw({message: 'If `stride` is an array, ' +
 						'it must have 2 fewer dimensions than `x`'})
 				}
@@ -2620,9 +2620,12 @@
 			.map((name,i) => `"${name}":` +
 	            `${convert_ref$1(unwrapped.output[i])}`)
 			.join(',');
-		const return_statement = `return {${return_value_inner}}`;
-		const body = [...preamble, ...main, return_statement].map(s => `\t${s}`);
-		const lines = ['def __call__(self, inputs):', ...body];
+		const return_statement = [
+			'if return_graph: return graph',
+			`else: return {${return_value_inner}}`
+		];
+		const body = [...preamble, ...main, ...return_statement].map(s => `\t${s}`);
+		const lines = ['def __call__(self, inputs, return_graph=False):', ...body];
 		return lines
 	}
 

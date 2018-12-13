@@ -62,7 +62,7 @@ export function __convolution__desc_func(tensor_trace, node, inputs){
 				throw({message})
 			}
 		} else if(Array.isArray(inputs[2])){
-			if(inputs[2].length !== (inputs[0].length - 2)){
+			if(inputs[2].shape.length !== (inputs[0].shape.length - 2)){
 				throw({message: 'If `stride` is an array, ' +
 					'it must have 2 fewer dimensions than `x`'})
 			}

@@ -175,9 +175,12 @@ function get_call_fn(unwrapped, nodes, inDesc, subgraphs){
 		.map((name,i) => `"${name}":` +
             `${convert_ref(unwrapped.output[i])}`)
 		.join(',')
-	const return_statement = `return {${return_value_inner}}`
-	const body = [...preamble, ...main, return_statement].map(s => `\t${s}`)
-	const lines = ['def __call__(self, inputs):', ...body]
+	const return_statement = [
+		'if return_graph: return graph',
+		`else: return {${return_value_inner}}`
+	]
+	const body = [...preamble, ...main, ...return_statement].map(s => `\t${s}`)
+	const lines = ['def __call__(self, inputs, return_graph=False):', ...body]
 	return lines
 }
 
