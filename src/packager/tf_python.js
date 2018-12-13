@@ -136,8 +136,8 @@ const unreffedOpConversionMap = {
 
 export const opConversionMap = Object.entries(unreffedOpConversionMap)
 	.reduce((acc, [k,fn]) => Object.assign(acc, {[k]: 
-        node => fn(Object.assign({}, node,
-        	{input: node.input.map(convert_ref)}))
+		node => fn(Object.assign({}, node, 
+			{input: node.input.map(convert_ref)}))
 	}), {})
 
 function make_init_fn(nodes, subgraphs){
@@ -151,9 +151,9 @@ function make_init_fn(nodes, subgraphs){
 		.filter(n => init_deps.has(n.name))
 		.map(n => `graph['${n.name}'] = ${overriddenOps[n.op](n)}`)
 	const assign = 'self.variables = {'+
-        init_nodes
-        	.map(s => `"${s}": graph['${s}'][0]`)
-        	.join(',')
+		init_nodes
+			.map(s => `"${s}": graph['${s}'][0]`)
+			.join(',')
         +'}'
 	const body = [...preamble, ...main, assign].map(s => `\t${s}`)
 	const lines = ['def __init__(self, tf):', ...body]
