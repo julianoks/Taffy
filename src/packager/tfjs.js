@@ -186,6 +186,7 @@ export const opConversionMap = {
 	gather_rows: gatherRowsConversion,
 	max_pool: n => poolingConversion('maxPool', n),
 	avg_pool: n => poolingConversion('avgPool', n),
+	concat: node => `[tf.concat(${stringify(node.input)}, ${node.attr.axis})]`
 }
 
 

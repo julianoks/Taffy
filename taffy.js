@@ -1655,6 +1655,51 @@
 			'applies batch normalization to the input')
 	};
 
+	/*
+	---------------------------------
+	------------ concat  ------------
+	---------------------------------
+	*/
+	function __concat__desc_func(tensor_trace, node, inputs){
+		const [tensors, axis] = inputs;
+		if(!(Array.isArray(tensors) && tensors.every(isTensor$1))){
+			throw({message: 'First input must be a list of tensors'})
+		}
+		if(tensors.length == 0) return {}
+		let resultShape = tensors[0].shape.slice();
+		let resultDType = tensors[0].dtype;
+		resultShape[axis] = tensors.reduce((a, {shape}) => a+shape[axis], 0);
+		tensors.forEach(({shape, dtype}) => {
+			if(dtype !== resultDType) throw({message: 'dtypes do not match'})
+			shape.forEach((d,i) => {
+				if(i !== axis && d !== resultShape[i]){
+					throw({message: `Shapes don't align at dimesion ${i}`})
+				}
+			});
+		});
+		const rank = tensors[0].shape.length;
+		if(!Number.isInteger(axis) && axis>=0 && axis<rank){
+			throw({message: `Second input must be an integer in [0, ${rank-1}]`})
+		}
+		try {
+			resultShape = new tensor_shape$1(resultShape);
+		} catch(message){ throw({message}) }
+		const out = new tensor_description$1(resultShape, resultDType, node.name+':0',
+			'concat', tensors.map(t => t.val_ref), {axis});
+		const results = {[out.val_ref]: out};
+		Object.assign(tensor_trace, results);
+		return results
+	}
+
+	const __concat__primitive = {
+		name: 'concat',
+		type: 'tensor',
+		desc_function: __concat__desc_func,
+		doc: new op_doc$1(['list of tensors', 'axis (an integer)'],
+			['tensors concatenated along axis'],
+			'concatenates tensors along axis')
+	};
+
 
 	/*
 	---------------------------------
@@ -1743,6 +1788,7 @@
 		__gather_rows__primitive,
 		__max_pool__primitive,
 		__avg_pool__primitive,
+		__concat__primitive,
 	].reduce((a,p)=>Object.assign(a, {[p.name]: p}), {});
 
 	/*
@@ -2218,6 +2264,7 @@
 		gather_rows: gatherRowsConversion,
 		max_pool: n => poolingConversion('maxPool', n),
 		avg_pool: n => poolingConversion('avgPool', n),
+		concat: node => `[tf.concat(${stringify(node.input)}, ${node.attr.axis})]`
 	};
 
 
@@ -2530,6 +2577,7 @@
 		gather_rows: gatherRowsConversion$1,
 		max_pool: n => poolingConversion$1('max_pool', n),
 		avg_pool: n => poolingConversion$1('avg_pool', n),
+		concat: node => `[tf.concat(${stringify$1(node.input)}, ${node.attr.axis})]`
 	};
 
 	const opConversionMap$1 = Object.entries(unreffedOpConversionMap)
