@@ -2398,6 +2398,227 @@
 		return fn_string
 	}
 
+	const stringify$1 = JSON.stringify;
+
+	function convert_ref$1(ref){
+		const idx = ref.lastIndexOf(':');
+		const node = ref.slice(0,idx);
+		return `graph['${node}'][${ref.slice(idx+1)}]`
+	}
+
+	function convert_shape$1(shape){
+		const arr = shape.map(c => isNaN(c)? 'None' : ''+c);
+		return '['+arr.join(', ')+']'
+	}
+
+	function getInDesc$1(unwrapped){
+		const mapInputDesc = ({dtype, shape}) =>
+				({dtype: dtype, shape: convert_shape$1(shape)}),
+			in_desc = unwrapped.stage_two.input_descriptions;
+		return Object.entries(in_desc)
+			.reduce((acc,[k,v]) => Object.assign(acc, {[k]: mapInputDesc(v)}),{})
+	}
+
+	function op_conversion_get_tensor$1(node){
+		const {shape,fill,dtype} = node.attr;
+		const s_shape = convert_shape$1(shape.shape);
+		const s_dtype = stringify$1(dtype);
+		let out = '';
+		if(fill.type == 'scalar'){
+			out = `tf.cast(tf.fill(${s_shape},${fill.val}), ${s_dtype})`;
+		}
+		else if(fill.type == 'symbol'){
+			out = ({
+				'ones': 	`tf.ones(${s_shape},${s_dtype})`,
+				'zeros': 	`tf.zeros(${s_shape},${s_dtype})`,
+				'normal': 	`tf.random_normal(${s_shape},0,1,${s_dtype})`,
+				'truncated_normal': `tf.truncated_normal(${s_shape},0,1,${s_dtype})`
+			})[fill.symbol];
+			if(out===undefined) throw('Unsupported fill symbol')
+		}
+		else throw('Unsupported fill')
+		return `[${out}]`
+	}
+
+	const convertTFStride = arr => stringify$1([1, ...arr, 1]);
+
+	function convolutionWrapper$1(node){
+		const [x, filter] = node.input;
+		const {stride, padding, shape} = node.attr;
+		const tfPad = typeof(padding)==typeof('')? padding.toUpperCase() : padding;
+		const ND = shape.length - 2;
+		const availConvs = new Set([1, 2, 3]);
+		if(!availConvs.has(ND)){
+			throw(`${ND}D convolution not yet supported, ` +
+				`only (${[...availConvs]})D supported`)
+		}
+		let result = '';
+		if(ND == 1){
+			result = `tf.nn.conv1d(${x}, ${filter}, ` +
+	            `${stride[0]}, ${stringify$1(tfPad)})`;
+		} else {
+			result = `tf.nn.conv${ND}d(${x}, ${filter}, ` +
+	            `${convertTFStride(stride)}, ${stringify$1(tfPad)})`;
+		}
+		return `[${result}]`
+	}
+
+	function batchNormConversion$1(node){
+		return `[tf.nn.batch_normalization(${node.input.slice(0,3)},`
+	        + `${node.input.slice(3,5).reverse()}, tf.constant(1e-4))]`
+	}
+
+	function gatherRowsConversion$1(node){
+		const [x, inds] = node.input;
+		const range = `tf.cast(tf.range(0,${inds}.shape[0]), ${inds}.dtype)`;
+		const positions = `tf.stack([${range},${inds}],1)`;
+		return `[tf.gather_nd(${x}, ${positions})]`
+	}
+
+	function poolingConversion$1(op, node){
+		// `op` is 'max_pool' or 'avg_pool'
+		const x = node.input[0];
+		const {filterSize, stride, padding, shape} = node.attr;
+		const tfPad = typeof(padding)==typeof('')? padding.toUpperCase() : padding;
+		const tfStride = convertTFStride(Array(shape.length-2).fill(stride));
+		const tfFilter = convertTFStride(Array(shape.length-2).fill(filterSize));
+		if(!(shape.length == 4 || shape.length == 5)){
+			throw('Pooling only supported for inputs of rank 4 or 5.')
+		}
+		const tfOp = shape.length == 5? `${op}3d` : op;
+		return `[tf.nn.${tfOp}(${x},${tfFilter},${tfStride},${stringify$1(tfPad)})]`
+	}
+
+	function convertPow(node){
+		const dtype = `${node.input[0]}.dtype`; // TODO: pick higher of the dtypes
+		const casted = node.input.map(s => `tf.cast(${s}, ${dtype})`);
+		return `[tf.pow(${casted})]`
+	}
+
+	const unreffedOpConversionMap = {
+		get_tensor: op_conversion_get_tensor$1,
+		placeholder: () => {throw('placeholder shouldn\'t have been called...')},
+		variable: node => `[self.variables[${stringify$1(node.name)}]]`,
+		relu: node => `[${node.input.map(r => `tf.nn.relu(${r})`)}]`,
+		sigmoid: node => `[${node.input.map(r => `tf.nn.sigmoid(${r})`)}]`,
+		tanh: node => `[${node.input.map(r => `tf.nn.tanh(${r})`)}]`,
+		exp: node => `[tf.exp(${node.input[0]})]`,
+		matmul: node => `[tf.linalg.matmul(${node.input})]`,
+		add: node => `[${node.input.join(' + ')}]`,
+		multiply: node => `[${node.input.join(' * ')}]`,
+		divide: node => `[tf.div(${node.input})]`,
+		subtract: node => `[tf.subtract(${node.input})]`,
+		pow: convertPow,
+		sqrt: node => `[tf.sqrt(${node.input[0]})]`,
+		softmax: node => `[tf.nn.softmax(${node.input[0]})]`,
+		log: node => `[tf.math.log(${node.input[0]}+tf.constant(1e-8))]`,
+		reduce_sum: n => `[tf.reduce_sum(${n.input[0]}, `+
+	        `axis=${stringify$1(n.attr.axis)})]`,
+		reduce_avg: node => `[tf.reduce_mean(${node.input[0]}, `+
+	        `axis=${stringify$1(node.attr.axis)})]`,
+		negate: node => `[-1 * ${node.input[0]}]`,
+		transpose: n => `[tf.transpose(${n.input[0]}, ` +
+			`perm=${stringify$1(n.attr.perm)})]`,
+		one_hot: node => `[tf.one_hot(${node.input[0]}, ${node.attr.n_colls})]`,
+		cast: n => `[tf.cast(${n.input[0]}, ${stringify$1(n.attr.dtype)})]`,
+		abs: node => `[tf.abs(${node.input[0]})]`,
+		convolution: convolutionWrapper$1,
+		gather: n => `[tf.gather(${n.input.slice(0,2)},axis=${n.attr.axis})]`,
+		reshape: n => `[tf.reshape(${n.input[0]},[${n.attr.shapeEncoding
+		.map(x => typeof(x)!=typeof('')? x : n.input[0]+'.shape['+x+']')}])]`,
+		batch_norm: batchNormConversion$1,
+		gather_rows: gatherRowsConversion$1,
+		max_pool: n => poolingConversion$1('max_pool', n),
+		avg_pool: n => poolingConversion$1('avg_pool', n),
+	};
+
+	const opConversionMap$1 = Object.entries(unreffedOpConversionMap)
+		.reduce((acc, [k,fn]) => Object.assign(acc, {[k]: 
+			node => fn(Object.assign({}, node, 
+				{input: node.input.map(convert_ref$1)}))
+		}), {});
+
+	function make_init_fn(nodes, subgraphs){
+		const {init_deps, init_nodes} = subgraphs;
+		const varConversion = n => `[tf.Variable(${convert_ref$1(n.input[0])})]`;
+		const overriddenOps = Object.assign({}, opConversionMap$1, 
+			{variable: varConversion});
+		const preamble = ['self.tf = tf', 'graph = {}'];
+		const main = nodes
+			.filter(n => n.op !== 'placeholder')
+			.filter(n => init_deps.has(n.name))
+			.map(n => `graph['${n.name}'] = ${overriddenOps[n.op](n)}`);
+		const assign = 'self.variables = {'+
+			init_nodes
+				.map(s => `"${s}": graph['${s}'][0]`)
+				.join(',')
+	        +'}';
+		const body = [...preamble, ...main, assign].map(s => `\t${s}`);
+		const lines = ['def __init__(self, tf):', ...body];
+		return lines
+	}
+
+	function get_call_fn(unwrapped, nodes, inDesc, subgraphs){
+		const ingest = 'ingested = self.ingest_input(inputs)';
+		const inputAcquisition = Object.keys(inDesc)
+			.map(k => `graph['${k}'] = [ingested["${k}"]]`);
+		const preamble = ['tf = self.tf', 'graph = {}',
+			ingest, ...inputAcquisition];
+		const main = nodes
+			.filter(n => n.op !== 'placeholder')
+			.filter(n => subgraphs.forward.has(n.name))
+			.map(n => `graph['${n.name}'] = ${opConversionMap$1[n.op](n)}`);
+		const return_value_inner = unwrapped.output_names
+			.map((name,i) => `"${name}":` +
+	            `${convert_ref$1(unwrapped.output[i])}`)
+			.join(',');
+		const return_statement = `return {${return_value_inner}}`;
+		const body = [...preamble, ...main, return_statement].map(s => `\t${s}`);
+		const lines = ['def __call__(self, inputs):', ...body];
+		return lines
+	}
+
+	function makePythonClass(name, init, call, ingest_input){
+		const coalesce = lines => lines.map(s => `\t${s}`).join('\n');
+		const classStr = `class ${name}:\n`
+	        + coalesce(init) + '\n'
+	        + coalesce(call) + '\n'
+	        + coalesce(ingest_input) + '\n';
+		return classStr
+	}
+
+	function make_ingest_input(inDesc){
+		const unnamedPrefix = 'INPUT_';
+		const intFromUnnamed = s => +s.slice(unnamedPrefix.length);
+		const allUnnamed = arr => arr.every(s => s.startsWith(unnamedPrefix)) && 
+	        arr.map(intFromUnnamed).every(n => Number.isInteger(n));
+		const input_names = Object.keys(inDesc)
+			.sort((a,b) => (allUnnamed([a,b])?
+				intFromUnnamed(a)<intFromUnnamed(b) : a<b)? -1 : 1);
+		const body = [
+			'if isinstance(recieved, dict):',
+			'\tingested = recieved',
+			'elif isinstance(recieved, list) or isinstance(recieved, tuple):',
+			`\tinput_names = ${stringify$1(input_names)}`,
+			'\tingested = {k:v for k,v in zip(input_names, recieved)}',
+			'else: raise ValueError("Input is not a dict, tuple, or list")',
+			'return ingested'
+		];
+		const lines = ['def ingest_input(self, recieved, check=True):',
+			...body.map(s => `\t${s}`)];
+		return lines
+	}
+
+	function unwrapped_to_factory(unwrapped){
+		const {nodes, output, name} = unwrapped;
+		const inDesc = getInDesc$1(unwrapped);
+		const subgraphs = get_init_subgraphs(nodes, output, ['variable']);
+		const init = make_init_fn(nodes, subgraphs);
+		const call = get_call_fn(unwrapped, nodes, inDesc, subgraphs);
+		const ingest_input = make_ingest_input(inDesc);
+		return makePythonClass(name, init, call, ingest_input)
+	}
+
 	const stages = {
 		one: stage_one, 
 		two: stage_two,
@@ -2405,7 +2626,8 @@
 	};
 
 	const packagers = {
-		tfjs: unwrapped_to_constructor
+		'TensorFlow.js': unwrapped_to_constructor,
+		'TensorFlow Python': unwrapped_to_factory
 	};
 
 	function puller(library, module_name, input_descriptions, prune=true){

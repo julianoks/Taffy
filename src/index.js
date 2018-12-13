@@ -4,7 +4,8 @@ export {primitives} from './ops/operations.js'
 import {stage_one} from './puller/stage_one.js'
 import {stage_two} from './puller/stage_two.js'
 import {stage_three} from './puller/stage_three.js'
-import {unwrapped_to_constructor as tfjs_constructor} from './packager/tfjs.js'
+import {unwrapped_to_constructor as tfjs_packager} from './packager/tfjs.js'
+import {unwrapped_to_factory as tf_python_packager} from './packager/tf_python'
 
 export const stages = {
 	one: stage_one, 
@@ -13,7 +14,8 @@ export const stages = {
 }
 
 export const packagers = {
-	tfjs: tfjs_constructor
+	'TensorFlow.js': tfjs_packager,
+	'TensorFlow Python': tf_python_packager
 }
 
 export function puller(library, module_name, input_descriptions, prune=true){
