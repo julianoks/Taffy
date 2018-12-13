@@ -2264,7 +2264,7 @@
 		gather_rows: gatherRowsConversion,
 		max_pool: n => poolingConversion('maxPool', n),
 		avg_pool: n => poolingConversion('avgPool', n),
-		concat: node => `[tf.concat(${stringify(node.input)}, ${node.attr.axis})]`
+		concat: node => `[tf.concat([${node.input}], ${node.attr.axis})]`
 	};
 
 
@@ -2577,7 +2577,7 @@
 		gather_rows: gatherRowsConversion$1,
 		max_pool: n => poolingConversion$1('max_pool', n),
 		avg_pool: n => poolingConversion$1('avg_pool', n),
-		concat: node => `[tf.concat(${stringify$1(node.input)}, ${node.attr.axis})]`
+		concat: node => `[tf.concat([${node.input}], ${node.attr.axis})]`
 	};
 
 	const opConversionMap$1 = Object.entries(unreffedOpConversionMap)

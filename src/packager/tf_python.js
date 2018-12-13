@@ -132,7 +132,7 @@ const unreffedOpConversionMap = {
 	gather_rows: gatherRowsConversion,
 	max_pool: n => poolingConversion('max_pool', n),
 	avg_pool: n => poolingConversion('avg_pool', n),
-	concat: node => `[tf.concat(${stringify(node.input)}, ${node.attr.axis})]`
+	concat: node => `[tf.concat([${node.input}], ${node.attr.axis})]`
 }
 
 export const opConversionMap = Object.entries(unreffedOpConversionMap)
