@@ -14,8 +14,8 @@ export const stages = {
 }
 
 export const packagers = {
-	tfjs: tfjs_packager,
-	tf_python: tf_python_packager
+	'TensorFlow.js': tfjs_packager,
+	'TensorFlow Python': tf_python_packager
 }
 
 export function puller(library, module_name, input_descriptions, prune=true){
